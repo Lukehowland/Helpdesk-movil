@@ -163,7 +163,7 @@ export default function ExploreCompaniesScreen() {
             {/* Industry Filter Modal */}
             <Modal
                 visible={showIndustryModal}
-                animationType="slide"
+                animationType="none"
                 transparent={true}
                 onRequestClose={() => setShowIndustryModal(false)}
             >
