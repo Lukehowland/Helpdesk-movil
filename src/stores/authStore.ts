@@ -17,6 +17,7 @@ interface AuthState {
     logout: (everywhere?: boolean) => Promise<void>;
     refreshToken: () => Promise<boolean>;
     checkAuth: () => Promise<void>;
+    invalidateToken: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -159,5 +160,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await tokenStorage.clearAccessToken();
             set({ accessToken: null, user: null, isAuthenticated: false, isLoading: false });
         }
+    },
+
+    invalidateToken: async () => {
+        // Set an invalid token to simulate expiration for testing
+        const invalidToken = 'invalid_token_for_testing';
+        await tokenStorage.setAccessToken(invalidToken);
+        set({ accessToken: invalidToken });
     },
 }));

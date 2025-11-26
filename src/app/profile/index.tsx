@@ -12,7 +12,7 @@ import { ProfileSkeleton } from '../../components/Skeleton';
 
 export default function ProfileScreen() {
     const router = useRouter();
-    const { user, logout, isLoading, refreshToken } = useAuthStore();
+    const { user, logout, isLoading, refreshToken, invalidateToken } = useAuthStore();
 
     const handleLogout = () => {
         Alert.alert(
@@ -37,6 +37,14 @@ export default function ProfileScreen() {
         Alert.alert(
             'Refresh Token',
             success ? 'Token refrescado exitosamente' : 'Error al refrescar el token'
+        );
+    };
+
+    const handleInvalidateToken = async () => {
+        await invalidateToken();
+        Alert.alert(
+            'Token Invalidado',
+            'El token ha sido invalidado. Intenta acceder a cualquier recurso para testear el auto-refresh.'
         );
     };
 
@@ -153,6 +161,14 @@ export default function ProfileScreen() {
                         className="border-blue-200 bg-white mb-2"
                     >
                         Test Refresh Token
+                    </Button>
+                    <Button
+                        mode="outlined"
+                        onPress={handleInvalidateToken}
+                        textColor="#f97316"
+                        className="border-orange-200 bg-white mb-2"
+                    >
+                        Test Invalidar Token
                     </Button>
                     <Button
                         mode="outlined"
