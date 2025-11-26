@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet, ScrollView } from 'react-native';
-import { useTheme, Chip, Searchbar, Text } from 'react-native-paper';
+import { useTheme, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAnnouncementStore } from '../../stores/announcementStore';
 import { AnnouncementCard } from '../../components/announcements/AnnouncementCard';
 import { AnnouncementType } from '../../types/announcement';
 import { AnnouncementCardSkeleton } from '../../components/Skeleton';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterPill } from '@/components/ui/FilterPill';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FILTERS: { label: string; value: AnnouncementType | 'ALL' }[] = [
     { label: 'Todos', value: 'ALL' },
@@ -39,33 +42,36 @@ export default function AnnouncementsScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['left', 'right', 'bottom']}>
             <View style={styles.header}>
-                <Searchbar
+                <View className="mb-4">
+                    <Text className="text-2xl font-bold text-gray-900 mb-1">Anuncios</Text>
+                    <Text className="text-gray-500">Mantente informado de las últimas novedades</Text>
+                </View>
+
+                <SearchInput
                     placeholder="Buscar anuncios..."
                     onChangeText={setSearchQuery}
                     value={searchQuery}
-                    style={styles.searchBar}
-                    elevation={0}
+                    containerStyle={{ marginBottom: 16 }}
                 />
 
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.filtersContainer}
-                >
-                    {FILTERS.map((filter) => (
-                        <Chip
-                            key={filter.value}
-                            selected={selectedType === filter.value}
-                            onPress={() => setSelectedType(filter.value)}
-                            style={styles.chip}
-                            showSelectedOverlay
-                        >
-                            {filter.label}
-                        </Chip>
-                    ))}
-                </ScrollView>
+                <View>
+                    <FlatList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={FILTERS}
+                        keyExtractor={(item) => item.value}
+                        contentContainerStyle={{ alignItems: 'center', paddingRight: 16 }}
+                        renderItem={({ item }) => (
+                            <FilterPill
+                                label={item.label}
+                                isSelected={selectedType === item.value}
+                                onPress={() => setSelectedType(item.value)}
+                            />
+                        )}
+                    />
+                </View>
             </View>
 
             {isLoading ? (
@@ -94,7 +100,7 @@ export default function AnnouncementsScreen() {
                     }
                 />
             )}
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -103,26 +109,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        padding: 16,
-        gap: 12,
-    },
-    searchBar: {
-        backgroundColor: '#fff', // Or theme.colors.surface
-    },
-    filtersContainer: {
-        gap: 8,
-        paddingRight: 16,
-    },
-    chip: {
-        marginRight: 8,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
     },
     listContent: {
-        paddingBottom: 16,
+        paddingHorizontal: 16,
+        paddingBottom: 80,
     },
     emptyContainer: {
         padding: 32,

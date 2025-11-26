@@ -7,9 +7,12 @@ import { debounce } from 'lodash';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CompanyCardSkeleton } from '@/components/Skeleton';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterButton } from '@/components/ui/FilterButton';
+import { FilterPill } from '@/components/ui/FilterPill';
 
 export default function ExploreCompaniesScreen() {
-    const { companies, industries, fetchCompanies, fetchIndustries, companiesLoading, setFilter, filters, clearFilters } = useCompanyStore();
+    const { companies, industries, fetchCompanies, fetchIndustries, companiesLoading, setFilter, setMultipleFilters, filters, clearFilters } = useCompanyStore();
     const [refreshing, setRefreshing] = useState(false);
     const [showIndustryModal, setShowIndustryModal] = useState(false);
     const [localSearch, setLocalSearch] = useState(filters.search || '');
@@ -74,30 +77,23 @@ export default function ExploreCompaniesScreen() {
                     <Text className="text-gray-500">Encuentra empresas para obtener soporte</Text>
                 </View>
 
-                {/* Search - Custom Implementation */}
-                <View className="flex-row items-center bg-white border border-gray-200 rounded-xl mb-4 px-3 h-12 shadow-sm">
-                    <MaterialCommunityIcons name="magnify" size={24} color="#9CA3AF" />
-                    <TextInput
-                        placeholder="Buscar empresas..."
-                        placeholderTextColor="#9CA3AF"
-                        onChangeText={onChangeSearch}
-                        value={localSearch}
-                        className="flex-1 ml-2 text-base text-gray-900 h-full"
-                        style={{ fontFamily: 'System' }}
-                    />
-                </View>
+                {/* Search - Shared Component */}
+                <SearchInput
+                    placeholder="Buscar empresas..."
+                    onChangeText={onChangeSearch}
+                    value={localSearch}
+                    containerStyle={{ marginBottom: 16 }}
+                />
 
                 {/* Filters Row */}
                 <View className="flex-row items-center mb-2">
-                    {/* Filter Button */}
-                    <TouchableOpacity
+                    {/* Filter Button - Shared Component */}
+                    <FilterButton
                         onPress={() => setShowIndustryModal(true)}
-                        className="bg-white items-center justify-center rounded-xl mr-3 border border-gray-200 h-10 w-10 shadow-sm"
-                    >
-                        <MaterialCommunityIcons name="filter-variant" size={20} color="#374151" />
-                    </TouchableOpacity>
+                        className="mr-3"
+                    />
 
-                    {/* Chips List - Custom Pills */}
+                    {/* Chips List - Shared Component */}
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
@@ -115,30 +111,25 @@ export default function ExploreCompaniesScreen() {
                                 (item.id === filters.industryId);
 
                             return (
-                                <TouchableOpacity
+                                <FilterPill
+                                    label={item.label}
+                                    isSelected={isSelected}
                                     onPress={() => {
                                         if (item.id === 'all') {
                                             clearFilters();
                                         } else if (item.id === 'following') {
-                                            setFilter('followedByMe', true);
-                                            setFilter('industryId', null);
+                                            setMultipleFilters({
+                                                followedByMe: true,
+                                                industryId: null
+                                            });
                                         } else {
-                                            setFilter('followedByMe', false);
-                                            setFilter('industryId', item.id);
+                                            setMultipleFilters({
+                                                followedByMe: false,
+                                                industryId: item.id
+                                            });
                                         }
                                     }}
-                                    className={`mr-2 px-4 h-10 rounded-lg justify-center items-center border ${isSelected
-                                            ? 'border-blue-500 bg-white'
-                                            : 'border-gray-300 bg-white'
-                                        }`}
-                                >
-                                    <View className="flex-row items-center gap-1">
-                                        <Text className={`font-medium ${isSelected ? 'text-gray-900' : 'text-gray-600'}`}>
-                                            {item.label}
-                                        </Text>
-                                        {isSelected && <MaterialCommunityIcons name="check" size={12} color="#2563EB" />}
-                                    </View>
-                                </TouchableOpacity>
+                                />
                             );
                         }}
                     />
@@ -200,8 +191,10 @@ export default function ExploreCompaniesScreen() {
                                     key={industry.id}
                                     className={`p-4 rounded-xl mb-2 flex-row justify-between items-center ${filters.industryId === industry.id ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-100'}`}
                                     onPress={() => {
-                                        setFilter('industryId', industry.id);
-                                        setFilter('followedByMe', false); // Switch to all mode with filter
+                                        setMultipleFilters({
+                                            industryId: industry.id,
+                                            followedByMe: false
+                                        });
                                         setShowIndustryModal(false);
                                     }}
                                 >

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Text } from 'react-native';
-import { useTheme, Searchbar } from 'react-native-paper';
+import { useTheme } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useArticleStore } from '../../stores/articleStore';
 import { CategoryGrid } from '../../components/help/CategoryGrid';
 import { ArticleCard } from '../../components/help/ArticleCard';
 import { ArticleCategory } from '../../types/article';
 import { CategoryGridSkeleton, ListItemSkeleton } from '../../components/Skeleton';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HelpScreen() {
     const theme = useTheme();
@@ -36,80 +38,80 @@ export default function HelpScreen() {
     };
 
     return (
-        <ScrollView
-            style={[styles.container, { backgroundColor: theme.colors.background }]}
-            contentContainerStyle={styles.content}
-        >
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: theme.colors.onSurface }]}>
-                    Centro de Ayuda
-                </Text>
-                <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    Encuentra soluciones rápidas
-                </Text>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['left', 'right', 'bottom']}>
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.header}>
+                    <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+                        Centro de Ayuda
+                    </Text>
+                    <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+                        Encuentra soluciones rápidas
+                    </Text>
 
-                <Searchbar
-                    placeholder="Buscar en artículos de ayuda..."
-                    onChangeText={setSearchQuery}
-                    value={searchQuery}
-                    style={styles.searchBar}
-                    elevation={0}
-                    onSubmitEditing={() => fetchArticles({ search: searchQuery })}
-                    onIconPress={() => fetchArticles({ search: searchQuery })}
-                />
-            </View>
+                    <SearchInput
+                        placeholder="Buscar en artículos de ayuda..."
+                        onChangeText={setSearchQuery}
+                        value={searchQuery}
+                        onSubmitEditing={() => fetchArticles({ search: searchQuery })}
+                    />
+                </View>
 
-            {isLoading ? (
-                <>
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-                            CATEGORÍAS
-                        </Text>
-                        <View style={{ paddingHorizontal: 16 }}>
-                            <CategoryGridSkeleton />
+                {isLoading ? (
+                    <>
+                        <View style={styles.section}>
+                            <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+                                CATEGORÍAS
+                            </Text>
+                            <View style={{ paddingHorizontal: 16 }}>
+                                <CategoryGridSkeleton />
+                            </View>
                         </View>
-                    </View>
 
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-                            ARTÍCULOS POPULARES
-                        </Text>
-                        <View style={[styles.popularList, { backgroundColor: theme.colors.surface }]}>
-                            <ListItemSkeleton lines={2} withAvatar={false} />
-                            <ListItemSkeleton lines={2} withAvatar={false} />
-                            <ListItemSkeleton lines={2} withAvatar={false} />
+                        <View style={styles.section}>
+                            <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+                                ARTÍCULOS POPULARES
+                            </Text>
+                            <View style={[styles.popularList, { backgroundColor: theme.colors.surface }]}>
+                                <ListItemSkeleton lines={2} withAvatar={false} />
+                                <ListItemSkeleton lines={2} withAvatar={false} />
+                                <ListItemSkeleton lines={2} withAvatar={false} />
+                            </View>
                         </View>
-                    </View>
-                </>
-            ) : (
-                <>
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-                            CATEGORÍAS
-                        </Text>
-                        <CategoryGrid
-                            categories={categories}
-                            onPressCategory={handleCategoryPress}
-                        />
-                    </View>
+                    </>
+                ) : (
+                    <>
+                        <View style={styles.section}>
+                            <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+                                CATEGORÍAS
+                            </Text>
+                            <CategoryGrid
+                                categories={categories}
+                                onPressCategory={handleCategoryPress}
+                            />
+                        </View>
 
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-                            ARTÍCULOS POPULARES
-                        </Text>
-                        <View style={[styles.popularList, { backgroundColor: theme.colors.surface }]}>
-                            {popularArticles.map((article) => (
-                                <ArticleCard
-                                    key={article.id}
-                                    article={article}
-                                    onPress={() => handleArticlePress(article.id)}
-                                />
-                            ))}
+                        <View style={styles.section}>
+                            <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+                                ARTÍCULOS POPULARES
+                            </Text>
+                            <View style={[styles.popularList, { backgroundColor: theme.colors.surface }]}>
+                                {popularArticles.map((article) => (
+                                    <ArticleCard
+                                        key={article.id}
+                                        article={article}
+                                        onPress={() => handleArticlePress(article.id)}
+                                    />
+                                ))}
+                            </View>
                         </View>
-                    </View>
-                </>
-            )}
-        </ScrollView>
+                    </>
+                )}
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
@@ -118,7 +120,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        paddingBottom: 32,
+        paddingBottom: 80,
     },
     header: {
         padding: 16,
@@ -131,9 +133,6 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 16,
         marginBottom: 16,
-    },
-    searchBar: {
-        backgroundColor: '#fff',
     },
     section: {
         marginTop: 24,

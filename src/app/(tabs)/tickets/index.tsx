@@ -1,5 +1,5 @@
 import { View, FlatList, Text, RefreshControl, TouchableOpacity } from 'react-native';
-import { Searchbar, SegmentedButtons, FAB } from 'react-native-paper';
+import { SegmentedButtons, FAB } from 'react-native-paper';
 import { useTicketStore } from '@/stores/ticketStore';
 import { useEffect, useState, useCallback } from 'react';
 import { TicketCard } from '@/components/tickets/TicketCard';
@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { TicketCardSkeleton } from '@/components/Skeleton';
+import { SearchInput } from '@/components/ui/SearchInput';
 
 export default function MyTicketsScreen() {
     const router = useRouter();
@@ -65,9 +66,9 @@ export default function MyTicketsScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-gray-50" edges={['left', 'right', 'top']}>
             {/* Header Stats */}
-            <View className="bg-white p-4 pb-2 border-b border-gray-200">
+            <View className="bg-white px-4 pt-4 pb-2 border-b border-gray-200">
                 <View className="flex-row justify-between mb-4">
                     <View className="bg-blue-50 p-3 rounded-xl flex-1 mr-2 items-center">
                         <Text className="text-2xl font-bold text-blue-700">{stats.total}</Text>
@@ -83,12 +84,11 @@ export default function MyTicketsScreen() {
                     </View>
                 </View>
 
-                <Searchbar
+                <SearchInput
                     placeholder="Buscar tickets..."
                     onChangeText={onChangeSearch}
                     value={searchQuery}
-                    className="bg-gray-100 rounded-xl mb-4 elevation-0"
-                    inputStyle={{ fontSize: 16 }}
+                    containerStyle={{ marginBottom: 16 }}
                 />
 
                 <SegmentedButtons

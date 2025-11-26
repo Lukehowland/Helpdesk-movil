@@ -33,6 +33,7 @@ interface CompanyState {
     followCompany: (id: string) => Promise<void>;
     unfollowCompany: (id: string) => Promise<void>;
     setFilter: (key: keyof CompanyState['filters'], value: any) => void;
+    setMultipleFilters: (filters: Partial<CompanyState['filters']>) => void;
     clearFilters: () => void;
 
     // Optimistic updates
@@ -144,6 +145,14 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
     setFilter: (key, value) => {
         set((state) => ({
             filters: { ...state.filters, [key]: value },
+            // Reset pagination when filter changes
+            pagination: { ...state.pagination, currentPage: 1 }
+        }));
+    },
+
+    setMultipleFilters: (newFilters) => {
+        set((state) => ({
+            filters: { ...state.filters, ...newFilters },
             // Reset pagination when filter changes
             pagination: { ...state.pagination, currentPage: 1 }
         }));
