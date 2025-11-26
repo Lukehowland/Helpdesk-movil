@@ -1,5 +1,6 @@
 import { TouchableOpacity, Text, View, TouchableOpacityProps } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { memo } from 'react';
 
 interface FilterPillProps extends TouchableOpacityProps {
     label: string;
@@ -7,7 +8,7 @@ interface FilterPillProps extends TouchableOpacityProps {
     showCheck?: boolean;
 }
 
-export function FilterPill({
+export const FilterPill = memo(function FilterPill({
     label,
     isSelected = false,
     showCheck = true,
@@ -32,4 +33,4 @@ export function FilterPill({
             </View>
         </TouchableOpacity>
     );
-}
+});
