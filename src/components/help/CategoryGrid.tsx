@@ -14,7 +14,7 @@ const getCategoryIcon = (code: string, apiIcon?: string): string => {
 
     switch (code) {
         case 'ACCOUNT_PROFILE': return 'account-circle';
-        case 'SECURITY_PRIVACY': return 'shield-lock';
+        case 'SECURITY_PRIVACY': return 'lock';
         case 'BILLING_PAYMENTS': return 'wallet-outline';
         case 'TECHNICAL_SUPPORT': return 'headset';
         default: return 'help-circle';
