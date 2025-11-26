@@ -8,10 +8,11 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 
+import { ProfileSkeleton } from '../../components/Skeleton';
+
 export default function ProfileScreen() {
     const router = useRouter();
-    const user = useAuthStore((state) => state.user);
-    const logout = useAuthStore((state) => state.logout);
+    const { user, logout, isLoading, refreshToken } = useAuthStore();
 
     const handleLogout = () => {
         Alert.alert(
@@ -30,6 +31,18 @@ export default function ProfileScreen() {
             ]
         );
     };
+
+    const handleRefreshToken = async () => {
+        const success = await refreshToken();
+        Alert.alert(
+            'Refresh Token',
+            success ? 'Token refrescado exitosamente' : 'Error al refrescar el token'
+        );
+    };
+
+    if (isLoading) {
+        return <ProfileSkeleton />;
+    }
 
     if (!user) return null;
 
@@ -133,6 +146,14 @@ export default function ProfileScreen() {
                 </View>
 
                 <View className="mt-6 px-4 mb-8">
+                    <Button
+                        mode="outlined"
+                        onPress={handleRefreshToken}
+                        textColor="#2563eb"
+                        className="border-blue-200 bg-white mb-2"
+                    >
+                        Test Refresh Token
+                    </Button>
                     <Button
                         mode="outlined"
                         onPress={handleLogout}
