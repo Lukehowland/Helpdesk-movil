@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList } from 'react-native';
-import { Text } from 'react-native-paper';
+import { View, FlatList, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAnnouncementStore } from '../../stores/announcementStore';
 import { AnnouncementCard } from '../../components/announcements/AnnouncementCard';
