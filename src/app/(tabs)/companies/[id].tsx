@@ -1,8 +1,8 @@
 import { View, ScrollView, Text, Alert, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Divider } from 'react-native-paper';
 import { useCompanyStore } from '@/stores/companyStore';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { CompanyHeader } from '@/components/companies/CompanyHeader';
 import { FollowButton } from '@/components/companies/FollowButton';
@@ -15,7 +15,22 @@ import { CompanyDetailSkeleton } from '@/components/Skeleton';
 export default function CompanyDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const navigation = useNavigation();
     const { fetchCompanyDetail, selectedCompany, selectedCompanyLoading, selectedCompanyError } = useCompanyStore();
+
+    useLayoutEffect(() => {
+        // Hide the tab bar and header when on detail screen
+        navigation.getParent()?.setOptions({
+            headerShown: false,
+            tabBarStyle: { display: 'none' }
+        });
+        return () => {
+            navigation.getParent()?.setOptions({
+                headerShown: true,
+                tabBarStyle: undefined
+            });
+        };
+    }, [navigation]);
 
     useEffect(() => {
         if (typeof id === 'string') {

@@ -163,9 +163,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
 
     invalidateToken: async () => {
-        // Set an invalid token to simulate expiration for testing
-        const invalidToken = 'invalid_token_for_testing';
-        await tokenStorage.setAccessToken(invalidToken);
-        set({ accessToken: invalidToken });
+        // Use a valid token that has been revoked on the backend
+        // This token should be obtained from the backend and already invalidated
+        // It will trigger a 401, causing the interceptor to attempt a refresh
+        const revokedToken = 'REPLACE_WITH_BACKEND_REVOKED_TOKEN';
+
+        console.log('Testing auto-refresh with revoked token - any API request will trigger 401 and refresh flow');
+
+        await tokenStorage.setAccessToken(revokedToken);
+        set({ accessToken: revokedToken });
     },
 }));

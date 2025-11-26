@@ -1,7 +1,7 @@
 import { View, FlatList, Text, RefreshControl, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useCompanyStore } from '@/stores/companyStore';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { CompanyCard } from '@/components/companies/CompanyCard';
 import { debounce } from 'lodash';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,11 +13,17 @@ export default function ExploreCompaniesScreen() {
     const { companies, industries, fetchCompanies, fetchIndustries, companiesLoading, setFilter, filters, clearFilters } = useCompanyStore();
     const [refreshing, setRefreshing] = useState(false);
     const [showIndustryModal, setShowIndustryModal] = useState(false);
+    const [localSearch, setLocalSearch] = useState(filters.search || '');
 
     // Initial load
     useEffect(() => {
         loadData();
     }, []);
+
+    // Sync localSearch with store search (for filter changes from other screens)
+    useEffect(() => {
+        setLocalSearch(filters.search || '');
+    }, [filters.search]);
 
     // Fetch when filters change
     useEffect(() => {
@@ -37,25 +43,31 @@ export default function ExploreCompaniesScreen() {
         }
     };
 
-    // Debounced search
-    const debouncedSearch = useCallback(
-        debounce((query) => {
-            setFilter('search', query);
-        }, 500),
-        []
-    );
+    // Stable debounced search using ref
+    const debouncedSearchRef = useRef<any>(null);
 
-    const onChangeSearch = (query: string) => {
-        debouncedSearch(query);
-    };
+    if (!debouncedSearchRef.current) {
+        debouncedSearchRef.current = debounce((query: string) => {
+            setFilter('search', query);
+        }, 500);
+    }
+
+    const onChangeSearch = useCallback((query: string) => {
+        // Update local state immediately for instant feedback
+        setLocalSearch(query);
+        // Debounce the store update
+        debouncedSearchRef.current(query);
+    }, []);
 
     const onRefresh = () => {
         setRefreshing(true);
         loadData();
     };
 
-    const renderHeader = useCallback(
-        () => (
+
+    return (
+        <SafeAreaView className="flex-1 bg-gray-50" edges={['left', 'right', 'bottom']}>
+            {/* Header - SEPARATED from FlatList to prevent remounting */}
             <View className="px-4 pt-4 pb-2">
                 {/* Title & Subtitle */}
                 <View className="mb-4">
@@ -70,7 +82,7 @@ export default function ExploreCompaniesScreen() {
                         placeholder="Buscar empresas..."
                         placeholderTextColor="#9CA3AF"
                         onChangeText={onChangeSearch}
-                        value={filters.search || ''}
+                        value={localSearch}
                         className="flex-1 ml-2 text-base text-gray-900 h-full"
                         style={{ fontFamily: 'System' }}
                     />
@@ -133,18 +145,13 @@ export default function ExploreCompaniesScreen() {
                     />
                 </View>
             </View>
-        ),
-        [filters.search, filters.industryId, filters.followedByMe, industries, onChangeSearch, clearFilters, setFilter]
-    );
 
-    return (
-        <SafeAreaView className="flex-1 bg-gray-50" edges={['left', 'right', 'bottom']}>
+            {/* FlatList - WITHOUT ListHeaderComponent */}
             <FlatList
                 data={companies}
                 renderItem={({ item }) => <CompanyCard company={item} />}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80, paddingTop: 0 }}
-                ListHeaderComponent={renderHeader}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
                 ListEmptyComponent={() => (
