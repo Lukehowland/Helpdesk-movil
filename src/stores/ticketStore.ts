@@ -9,6 +9,7 @@ interface TicketState {
     categories: TicketCategory[];
     isLoading: boolean;
     isCreating: boolean;
+    creationStatus: string;
 
     fetchTickets: (filters?: TicketFilters) => Promise<void>;
     fetchTicket: (ticketCode: string) => Promise<Ticket>;
@@ -27,6 +28,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     categories: [],
     isLoading: false,
     isCreating: false,
+    creationStatus: '',
 
     fetchTickets: async (filters = {}) => {
         set({ isLoading: true });
@@ -34,7 +36,42 @@ export const useTicketStore = create<TicketState>((set, get) => ({
             const response = await client.get('/api/tickets', {
                 params: { ...filters, include: 'company,category' }
             });
-            const tickets = response.data.data.map(mapTicket);
+            let tickets = response.data.data.map(mapTicket);
+
+            // Patch: Fetch missing company info if needed
+            const missingCompanyIds = [...new Set(tickets.filter((t: Ticket) => t.company.id && !t.company.name).map((t: Ticket) => t.company.id as string))] as string[];
+
+            if (missingCompanyIds.length > 0) {
+                try {
+                    const companyPromises = missingCompanyIds.map((id: string) => client.get(`/api/companies/${id}`).catch(() => null));
+                    const companiesResponses = await Promise.all(companyPromises);
+                    const companiesMap = new Map();
+
+                    companiesResponses.forEach((res: any) => {
+                        if (res && res.data && res.data.data) {
+                            companiesMap.set(res.data.data.id, res.data.data);
+                        }
+                    });
+
+                    tickets = tickets.map((t: Ticket) => {
+                        if (t.company.id && !t.company.name && companiesMap.has(t.company.id)) {
+                            const comp = companiesMap.get(t.company.id);
+                            return {
+                                ...t,
+                                company: {
+                                    id: comp.id,
+                                    name: comp.name,
+                                    logoUrl: comp.logo_url || comp.logoUrl || null,
+                                }
+                            };
+                        }
+                        return t;
+                    });
+                } catch (err) {
+                    console.error('Error patching companies:', err);
+                }
+            }
+
             set({ tickets, isLoading: false });
         } catch (error) {
             set({ isLoading: false });
@@ -46,9 +83,30 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await client.get(`/api/tickets/${ticketCode}`, {
-                params: { include: 'company,category,owner,creator' }
+                params: { include: 'company,category,owner,creator,attachments' }
             });
-            const ticket = mapTicket(response.data.data);
+            let ticket = mapTicket(response.data.data);
+
+            // Patch for single ticket if needed
+            if (ticket.company.id && !ticket.company.name) {
+                try {
+                    const compRes = await client.get(`/api/companies/${ticket.company.id}`);
+                    if (compRes.data.data) {
+                        const comp = compRes.data.data;
+                        ticket = {
+                            ...ticket,
+                            company: {
+                                id: comp.id,
+                                name: comp.name,
+                                logoUrl: comp.logo_url || comp.logoUrl || null,
+                            }
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error patching company for ticket:', e);
+                }
+            }
+
             set({ currentTicket: ticket, isLoading: false });
             return ticket;
         } catch (error) {
@@ -58,7 +116,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     },
 
     createTicket: async (data, attachments = []) => {
-        set({ isCreating: true });
+        set({ isCreating: true, creationStatus: 'Creando ticket...' });
         try {
             // 1. Create ticket
             const response = await client.post('/api/tickets', data);
@@ -66,7 +124,10 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
             // 2. Upload attachments if any
             if (attachments.length > 0) {
-                for (const file of attachments) {
+                set({ creationStatus: `Subiendo ${attachments.length} archivos...` });
+                for (let i = 0; i < attachments.length; i++) {
+                    const file = attachments[i];
+                    set({ creationStatus: `Subiendo archivo ${i + 1} de ${attachments.length}...` });
                     const formData = new FormData();
                     // @ts-ignore
                     formData.append('file', {
@@ -81,10 +142,10 @@ export const useTicketStore = create<TicketState>((set, get) => ({
                 }
             }
 
-            set({ isCreating: false });
+            set({ isCreating: false, creationStatus: '' });
             return newTicket;
         } catch (error) {
-            set({ isCreating: false });
+            set({ isCreating: false, creationStatus: '' });
             throw error;
         }
     },
@@ -140,6 +201,21 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 }));
 
 // Helper to map API response (snake_case) to Ticket interface (camelCase)
+const mapAttachment = (data: any): any => ({
+    id: data.id,
+    ticketId: data.ticket_id,
+    responseId: data.response_id,
+    fileName: data.file_name || data.name,
+    fileUrl: data.file_url || data.url,
+    fileType: data.file_type || data.mime_type,
+    fileSizeBytes: data.file_size_bytes || data.size,
+    uploadedBy: {
+        id: data.uploaded_by?.id,
+        displayName: data.uploaded_by?.name,
+    },
+    createdAt: data.created_at,
+});
+
 const mapTicket = (data: any): Ticket => ({
     id: data.id,
     ticketCode: data.ticket_code,
@@ -148,7 +224,7 @@ const mapTicket = (data: any): Ticket => ({
     status: data.status,
     lastResponseAuthorType: data.last_response_author_type,
     company: {
-        id: data.company?.id,
+        id: data.company?.id || data.company_id,
         name: data.company?.name,
         logoUrl: data.company?.logo_url || data.company?.logoUrl || null, // Handle both cases just in case
     },
@@ -171,27 +247,13 @@ const mapTicket = (data: any): Ticket => ({
         createdAt: data.rating.created_at,
     } : null,
     attachmentsCount: data.attachments_count || 0,
+    attachments: (data.attachments || []).map(mapAttachment),
     responsesCount: data.responses_count || 0,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     firstResponseAt: data.timeline?.first_response_at || null,
     resolvedAt: data.resolved_at,
     closedAt: data.closed_at,
-});
-
-const mapAttachment = (data: any): any => ({
-    id: data.id,
-    ticketId: data.ticket_id,
-    responseId: data.response_id,
-    fileName: data.file_name || data.name,
-    fileUrl: data.file_url || data.url,
-    fileType: data.file_type || data.mime_type,
-    fileSizeBytes: data.file_size_bytes || data.size,
-    uploadedBy: {
-        id: data.uploaded_by?.id,
-        displayName: data.uploaded_by?.name,
-    },
-    createdAt: data.created_at,
 });
 
 const mapTicketResponse = (data: any): TicketResponse => ({

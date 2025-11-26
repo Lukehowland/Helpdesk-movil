@@ -33,7 +33,7 @@ export default function SkeletonExamples() {
             </Section>
 
             <Section title="Molecules: Card">
-                <CardSkeleton hasHeader={true} hasFooter={true} />
+                <CardSkeleton />
             </Section>
 
             <Section title="Molecules: Form">

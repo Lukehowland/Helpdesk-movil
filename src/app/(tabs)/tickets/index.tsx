@@ -58,11 +58,11 @@ export default function MyTicketsScreen() {
         loadData();
     };
 
-    // Stats calculation
+    // Stats calculation (Client-side patch)
     const stats = {
-        total: user?.ticketsCount || 0,
-        open: (user?.ticketsCount || 0) - (user?.resolvedTicketsCount || 0),
-        resolved: user?.resolvedTicketsCount || 0,
+        total: tickets.length,
+        open: tickets.filter(t => ['open', 'pending'].includes(t.status)).length,
+        resolved: tickets.filter(t => ['resolved', 'closed'].includes(t.status)).length,
     };
 
     return (

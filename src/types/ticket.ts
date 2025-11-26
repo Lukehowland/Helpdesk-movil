@@ -35,6 +35,7 @@ export interface Ticket {
     } | null;
 
     attachmentsCount: number;
+    attachments: Attachment[];
     responsesCount: number;
 
     createdAt: string;

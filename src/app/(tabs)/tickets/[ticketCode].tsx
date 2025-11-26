@@ -146,6 +146,22 @@ export default function TicketDetailScreen() {
                             <Text className="text-gray-800 leading-relaxed">{currentTicket.description}</Text>
                         </View>
 
+                        <View className="bg-white p-4 rounded-xl border border-gray-100 mb-4">
+                            <Text className="text-gray-500 text-xs uppercase font-bold mb-3">Detalles</Text>
+                            <View className="flex-row justify-between mb-2">
+                                <Text className="text-gray-600">Categoría</Text>
+                                <Text className="font-medium text-gray-900">{currentTicket.category?.name || 'Sin Categoría'}</Text>
+                            </View>
+                            <View className="flex-row justify-between mb-2">
+                                <Text className="text-gray-600">Creado</Text>
+                                <Text className="font-medium text-gray-900">{format(new Date(currentTicket.createdAt), "d MMM yyyy, HH:mm", { locale: es })}</Text>
+                            </View>
+                            <View className="flex-row justify-between">
+                                <Text className="text-gray-600">Actualizado</Text>
+                                <Text className="font-medium text-gray-900">{format(new Date(currentTicket.updatedAt), "d MMM yyyy, HH:mm", { locale: es })}</Text>
+                            </View>
+                        </View>
+
                         {currentTicket.ownerAgent && (
                             <View className="bg-white p-4 rounded-xl border border-gray-100 mb-4 flex-row items-center">
                                 {currentTicket.ownerAgent.avatarUrl ? (

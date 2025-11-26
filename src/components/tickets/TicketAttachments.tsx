@@ -23,9 +23,10 @@ export function TicketAttachments({ ticket }: TicketAttachmentsProps) {
     }, [ticket.ticketCode]);
 
     useEffect(() => {
-        const attachments = currentTicketResponses.flatMap(r => r.attachments || []);
-        setAllAttachments(attachments);
-    }, [currentTicketResponses]);
+        const responseAttachments = currentTicketResponses.flatMap(r => r.attachments || []);
+        const ticketAttachments = ticket.attachments || [];
+        setAllAttachments([...ticketAttachments, ...responseAttachments]);
+    }, [currentTicketResponses, ticket.attachments]);
 
     const handleOpenAttachment = async (url: string) => {
         try {

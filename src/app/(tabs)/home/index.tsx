@@ -2,14 +2,19 @@ import { View, Text, ScrollView, TouchableOpacity, Animated } from 'react-native
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../stores/authStore';
-import { useEffect, useRef } from 'react';
+import { useTicketStore } from '../../../stores/ticketStore';
+import { useEffect, useRef, useState } from 'react';
 import { HomeSkeleton } from '../../../components/Skeleton';
+import { TicketCard } from '../../../components/tickets/TicketCard';
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { user, isLoading } = useAuthStore();
+    const { user, isLoading: authLoading } = useAuthStore();
+    const { tickets, fetchTickets, isLoading: ticketsLoading } = useTicketStore();
+    const [showHint, setShowHint] = useState(true);
 
     const rotateAnim = useRef(new Animated.Value(0)).current;
+    const fadeAnim = useRef(new Animated.Value(1)).current;
 
     const waveAnimationSequence = () => {
         return Animated.sequence([
@@ -49,7 +54,9 @@ export default function HomeScreen() {
     };
 
     useEffect(() => {
-        if (!isLoading) {
+        if (!authLoading) {
+            fetchTickets({ page: 1, per_page: 1 }); // Fetch only latest ticket
+
             // Primera animación después de 1 segundo
             const firstTimeout = setTimeout(() => {
                 playWaveAnimation();
@@ -60,14 +67,24 @@ export default function HomeScreen() {
                 playWaveAnimation();
             }, 3000);
 
+            // Hide hint after 5 seconds
+            const hintTimeout = setTimeout(() => {
+                Animated.timing(fadeAnim, {
+                    toValue: 0,
+                    duration: 500,
+                    useNativeDriver: true,
+                }).start(() => setShowHint(false));
+            }, 5000);
+
             return () => {
                 clearTimeout(firstTimeout);
                 clearTimeout(secondTimeout);
+                clearTimeout(hintTimeout);
             };
         }
-    }, [isLoading]);
+    }, [authLoading]);
 
-    if (isLoading) {
+    if (authLoading) {
         return <HomeSkeleton />;
     }
 
@@ -78,6 +95,7 @@ export default function HomeScreen() {
             color: 'bg-blue-100',
             iconColor: '#2563eb',
             route: '/(tabs)/tickets/create',
+            showHint: true,
         },
         {
             title: 'Mis Tickets',
@@ -135,24 +153,36 @@ export default function HomeScreen() {
                 <Text className="text-lg font-bold text-gray-900 mb-4">Acciones Rápidas</Text>
                 <View className="flex-row flex-wrap justify-between">
                     {quickActions.map((action, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            className="w-[48%] bg-white p-4 rounded-xl mb-4 shadow-sm border border-gray-100 items-center"
-                            onPress={() => router.push(action.route as any)}
-                        >
-                            <View className={`p-3 rounded-full mb-3 ${action.color}`}>
-                                <MaterialCommunityIcons
-                                    name={action.icon}
-                                    size={24}
-                                    color={action.iconColor}
-                                />
-                            </View>
-                            <Text className="font-medium text-gray-900">{action.title}</Text>
-                        </TouchableOpacity>
+                        <View key={index} className="w-[48%] mb-4 relative">
+                            <TouchableOpacity
+                                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 items-center w-full"
+                                onPress={() => router.push(action.route as any)}
+                            >
+                                <View className={`p-3 rounded-full mb-3 ${action.color}`}>
+                                    <MaterialCommunityIcons
+                                        name={action.icon}
+                                        size={24}
+                                        color={action.iconColor}
+                                    />
+                                </View>
+                                <Text className="font-medium text-gray-900">{action.title}</Text>
+                            </TouchableOpacity>
+
+                            {/* Hint Cloud */}
+                            {action.showHint && showHint && (
+                                <Animated.View
+                                    style={{ opacity: fadeAnim }}
+                                    className="absolute -top-10 -right-2 bg-blue-600 px-3 py-1.5 rounded-lg shadow-lg z-10"
+                                >
+                                    <Text className="text-white text-xs font-bold">¡Crea tu ticket!</Text>
+                                    <View className="absolute -bottom-1 left-4 w-2 h-2 bg-blue-600 rotate-45" />
+                                </Animated.View>
+                            )}
+                        </View>
                     ))}
                 </View>
 
-                {/* Recent Activity Section Placeholder */}
+                {/* Recent Activity Section */}
                 <View className="mt-4">
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-lg font-bold text-gray-900">Actividad Reciente</Text>
@@ -161,12 +191,20 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <View className="bg-white p-6 rounded-xl border border-gray-100 items-center justify-center">
-                        <MaterialCommunityIcons name="clipboard-text-outline" size={48} color="#d1d5db" />
-                        <Text className="text-gray-500 mt-2 text-center">
-                            Tus tickets recientes aparecerán aquí
-                        </Text>
-                    </View>
+                    {ticketsLoading ? (
+                        <View className="bg-white p-6 rounded-xl border border-gray-100 items-center justify-center h-32">
+                            <MaterialCommunityIcons name="loading" size={32} color="#2563eb" className="animate-spin" />
+                        </View>
+                    ) : tickets.length > 0 ? (
+                        <TicketCard ticket={tickets[0]} />
+                    ) : (
+                        <View className="bg-white p-6 rounded-xl border border-gray-100 items-center justify-center">
+                            <MaterialCommunityIcons name="clipboard-text-outline" size={48} color="#d1d5db" />
+                            <Text className="text-gray-500 mt-2 text-center">
+                                Tus tickets recientes aparecerán aquí
+                            </Text>
+                        </View>
+                    )}
                 </View>
             </ScrollView>
         </View>

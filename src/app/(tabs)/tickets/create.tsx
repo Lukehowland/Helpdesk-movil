@@ -25,7 +25,7 @@ type CreateTicketData = z.infer<typeof createTicketSchema>;
 export default function CreateTicketScreen() {
     const router = useRouter();
     const { companies, fetchCompanies, companiesLoading, setFilter, clearFilters } = useCompanyStore();
-    const { createTicket, isLoading, categories, fetchCategories } = useTicketStore();
+    const { createTicket, isLoading, categories, fetchCategories, creationStatus } = useTicketStore();
 
     const [step, setStep] = useState(1);
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -258,7 +258,7 @@ export default function CreateTicketScreen() {
                 disabled={isLoading}
                 className="mt-4"
             >
-                Crear Ticket
+                {isLoading ? (creationStatus || 'Procesando...') : 'Crear Ticket'}
             </Button>
         </View>
     );
