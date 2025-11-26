@@ -11,7 +11,7 @@ import { useTicketStore } from '@/stores/ticketStore';
 import { ControlledInput } from '@/components/ui/ControlledInput';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Company } from '@/types/company';
+import { CompanyExploreItem } from '@/types/company';
 
 const createTicketSchema = z.object({
     title: z.string().min(5, 'El título debe tener al menos 5 caracteres'),
@@ -24,7 +24,7 @@ type CreateTicketData = z.infer<typeof createTicketSchema>;
 
 export default function CreateTicketScreen() {
     const router = useRouter();
-    const { followedCompanies, fetchFollowedCompanies } = useCompanyStore();
+    const { companies, fetchCompanies, companiesLoading, setFilter, clearFilters } = useCompanyStore();
     const { createTicket, isLoading, categories, fetchCategories } = useTicketStore();
 
     const [step, setStep] = useState(1);
@@ -40,7 +40,14 @@ export default function CreateTicketScreen() {
     });
 
     useEffect(() => {
-        fetchFollowedCompanies();
+        // Fetch only followed companies
+        setFilter('followedByMe', true);
+        fetchCompanies();
+
+        // Cleanup: reset filter when component unmounts
+        return () => {
+            clearFilters();
+        };
     }, []);
 
     useEffect(() => {
@@ -108,13 +115,17 @@ export default function CreateTicketScreen() {
         <View>
             <Text className="text-xl font-bold text-gray-900 mb-4">Selecciona una Empresa</Text>
             <ScrollView className="max-h-[70vh]">
-                {followedCompanies.length === 0 ? (
+                {companiesLoading ? (
+                    <View className="items-center py-8">
+                        <Text className="text-gray-500 text-center">Cargando empresas...</Text>
+                    </View>
+                ) : companies.length === 0 ? (
                     <View className="items-center py-8">
                         <Text className="text-gray-500 text-center">No sigues a ninguna empresa aún.</Text>
                         <Button mode="text" onPress={() => router.push('/(tabs)/companies')}>Explorar Empresas</Button>
                     </View>
                 ) : (
-                    followedCompanies.map((company: Company) => (
+                    companies.map((company: CompanyExploreItem) => (
                         <TouchableOpacity
                             key={company.id}
                             onPress={() => setSelectedCompanyId(company.id)}
@@ -142,7 +153,7 @@ export default function CreateTicketScreen() {
     );
 
     const renderStep2 = () => {
-        const selectedCompany = followedCompanies.find((c: Company) => c.id === selectedCompanyId);
+        const selectedCompany = companies.find((c: CompanyExploreItem) => c.id === selectedCompanyId);
         return (
             <View>
                 <View className="flex-row items-center mb-6 bg-gray-100 p-3 rounded-lg">

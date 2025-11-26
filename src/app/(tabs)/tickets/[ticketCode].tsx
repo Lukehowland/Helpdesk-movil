@@ -54,11 +54,21 @@ export default function TicketDetailScreen() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'open': return 'bg-green-100 text-green-800';
+            case 'open': return 'bg-blue-100 text-blue-800';
             case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'resolved': return 'bg-blue-100 text-blue-800';
+            case 'resolved': return 'bg-green-100 text-green-800';
             case 'closed': return 'bg-gray-100 text-gray-800';
             default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'open': return 'ABIERTO';
+            case 'pending': return 'PENDIENTE';
+            case 'resolved': return 'RESUELTO';
+            case 'closed': return 'CERRADO';
+            default: return status.toUpperCase();
         }
     };
 
@@ -79,7 +89,7 @@ export default function TicketDetailScreen() {
                 <View className="flex-row items-center justify-between mt-2">
                     <View className={`px-3 py-1 rounded-full ${getStatusColor(currentTicket.status).split(' ')[0]}`}>
                         <Text className={`font-bold ${getStatusColor(currentTicket.status).split(' ')[1]}`}>
-                            {currentTicket.status.toUpperCase()}
+                            {getStatusLabel(currentTicket.status)}
                         </Text>
                     </View>
                     <Text className="text-gray-500 text-xs">

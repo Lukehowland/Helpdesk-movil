@@ -76,7 +76,7 @@ export default function MyTicketsScreen() {
                     </View>
                     <View className="bg-green-50 p-3 rounded-xl flex-1 mr-2 items-center">
                         <Text className="text-2xl font-bold text-green-700">{stats.open}</Text>
-                        <Text className="text-xs text-green-600 uppercase font-bold">Abiertos</Text>
+                        <Text className="text-xs text-green-600 uppercase font-bold">Activos</Text>
                     </View>
                     <View className="bg-gray-100 p-3 rounded-xl flex-1 items-center">
                         <Text className="text-2xl font-bold text-gray-700">{stats.resolved}</Text>
@@ -97,6 +97,7 @@ export default function MyTicketsScreen() {
                     buttons={[
                         { value: 'all', label: 'Todos' },
                         { value: 'open', label: 'Abiertos' },
+                        { value: 'pending', label: 'Pendientes' },
                         { value: 'resolved', label: 'Resueltos' },
                     ]}
                     style={{ marginBottom: 8 }}

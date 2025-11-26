@@ -235,8 +235,8 @@ export default function SessionsScreen() {
                     keyExtractor={(item) => item.id}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                     ListHeaderComponent={() => (
-                        <View className="px-4 pt-4 pb-2">
-                            <View className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex-row items-start">
+                        <View className="px-4 pt-4 pb-4">
+                            <View className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex-row items-start mb-2">
                                 <MaterialCommunityIcons name="information" size={20} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
                                 <Text className="text-sm text-blue-800 flex-1">
                                     Toca una sesión para ver más detalles. Las sesiones inactivas pueden ser cerradas.
@@ -257,7 +257,7 @@ export default function SessionsScreen() {
                             </Button>
                         </View>
                     )}
-                    contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
+                    contentContainerStyle={{ paddingBottom: 20 }}
                 />
             </View>
         </GestureHandlerRootView>

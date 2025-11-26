@@ -10,6 +10,7 @@ interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
+    isUploadingAvatar: boolean;
 
     // Actions
     login: (email: string, password: string) => Promise<void>;
@@ -18,6 +19,7 @@ interface AuthState {
     refreshToken: () => Promise<boolean>;
     checkAuth: () => Promise<void>;
     invalidateToken: () => Promise<void>;
+    updateAvatar: (uri: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isAuthenticated: false,
     isLoading: true,
+    isUploadingAvatar: false,
 
     login: async (email, password) => {
         set({ isLoading: true });
@@ -47,9 +50,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             const { accessToken, user: rawUser } = response.data;
 
             // Normalize user data
-            const user = (rawUser as any).profile
+            const userRaw = (rawUser as any).profile
                 ? { ...rawUser, ...(rawUser as any).profile }
                 : rawUser;
+
+            const user = mapUser(userRaw);
 
             await tokenStorage.setAccessToken(accessToken);
             set({ accessToken, user, isAuthenticated: true });
@@ -145,11 +150,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 ? { ...rawData, ...(rawData as any).profile }
                 : rawData;
 
-            console.log('Normalized User Data:', JSON.stringify(userData, null, 2));
+            const mappedUser = mapUser(userData);
+
+            console.log('Normalized User Data:', JSON.stringify(mappedUser, null, 2));
 
             set({
                 accessToken: token,
-                user: userData,
+                user: mappedUser,
                 isAuthenticated: true,
                 isLoading: false
             });
@@ -169,8 +176,65 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const expiredAccessToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJoZWxwZGVzay1hcGkiLCJhdWQiOiJoZWxwZGVzay1mcm9udGVuZCIsImlhdCI6MTc2NDE0NDA3OCwiZXhwIjoxNzY0MTQ3Njc4LCJzdWIiOiJjMTUyZDJiMC02YTA1LTQ5MjctYTk5Mi0yZWY1MTcyMTVjNjkiLCJ1c2VyX2lkIjoiYzE1MmQyYjAtNmEwNS00OTI3LWE5OTItMmVmNTE3MjE1YzY5IiwiZW1haWwiOiJkbHFtQGdtYWlsLmNvbSIsInNlc3Npb25faWQiOiI0NGNhZDcyMS1jY2IzLTQ5MDAtYTNiMy01ZjRjYzg5YWMzYjAiLCJyb2xlcyI6W3siY29kZSI6IlVTRVIiLCJjb21wYW55X2lkIjpudWxsfV19.1gke4jE_lf_tbAFWg82mgMDNS4x8rmqVseHocreEkcw';
 
         console.log('Testing auto-refresh with expired access token - refresh token in cookie is still valid');
+    },
 
-        await tokenStorage.setAccessToken(expiredAccessToken);
-        set({ accessToken: expiredAccessToken });
+    updateAvatar: async (uri: string) => {
+        set({ isUploadingAvatar: true });
+        try {
+            const formData = new FormData();
+
+            // Extract filename from URI
+            const filename = uri.split('/').pop() || 'avatar.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+            formData.append('avatar', {
+                uri,
+                name: filename,
+                type,
+            } as any);
+
+            const response = await client.post('/api/users/me/avatar', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            const newAvatarUrl = response.data.data.avatarUrl;
+
+            set((state) => ({
+                user: state.user ? { ...state.user, avatarUrl: newAvatarUrl } : null
+            }));
+
+        } catch (error: any) {
+            console.error('AVATAR UPLOAD ERROR:', error);
+            throw error;
+        } finally {
+            set({ isUploadingAvatar: false });
+        }
     },
 }));
+
+const mapUser = (data: any): User => ({
+    id: data.id,
+    userCode: data.user_code || data.userCode,
+    email: data.email,
+    status: data.status,
+    emailVerified: data.email_verified || data.emailVerified,
+    emailVerifiedAt: data.email_verified_at || data.emailVerifiedAt,
+    lastLoginAt: data.last_login_at || data.lastLoginAt,
+    createdAt: data.created_at || data.createdAt,
+    firstName: data.first_name || data.firstName,
+    lastName: data.last_name || data.lastName,
+    displayName: data.display_name || data.displayName,
+    phoneNumber: data.phone_number || data.phoneNumber,
+    avatarUrl: data.avatar_url || data.avatarUrl,
+    theme: data.theme,
+    language: data.language,
+    timezone: data.timezone,
+    pushWebNotifications: data.push_web_notifications || data.pushWebNotifications,
+    notificationsTickets: data.notifications_tickets || data.notificationsTickets,
+    roleContext: data.role_context || data.roleContext || [],
+    ticketsCount: data.tickets_count || data.ticketsCount || 0,
+    resolvedTicketsCount: data.resolved_tickets_count || data.resolvedTicketsCount || 0,
+});

@@ -31,8 +31,11 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     fetchTickets: async (filters = {}) => {
         set({ isLoading: true });
         try {
-            const response = await client.get('/api/tickets', { params: filters });
-            set({ tickets: response.data.data, isLoading: false });
+            const response = await client.get('/api/tickets', {
+                params: { ...filters, include: 'company,category' }
+            });
+            const tickets = response.data.data.map(mapTicket);
+            set({ tickets, isLoading: false });
         } catch (error) {
             set({ isLoading: false });
             throw error;
@@ -42,9 +45,12 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     fetchTicket: async (ticketCode) => {
         set({ isLoading: true });
         try {
-            const response = await client.get(`/api/tickets/${ticketCode}`);
-            set({ currentTicket: response.data.data, isLoading: false });
-            return response.data.data;
+            const response = await client.get(`/api/tickets/${ticketCode}`, {
+                params: { include: 'company,category,owner,creator' }
+            });
+            const ticket = mapTicket(response.data.data);
+            set({ currentTicket: ticket, isLoading: false });
+            return ticket;
         } catch (error) {
             set({ isLoading: false });
             throw error;
@@ -56,23 +62,23 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         try {
             // 1. Create ticket
             const response = await client.post('/api/tickets', data);
-            const newTicket = response.data.data;
+            const newTicket = mapTicket(response.data.data);
 
             // 2. Upload attachments if any
             if (attachments.length > 0) {
-                const formData = new FormData();
-                attachments.forEach((file) => {
+                for (const file of attachments) {
+                    const formData = new FormData();
                     // @ts-ignore
-                    formData.append('files', {
+                    formData.append('file', {
                         uri: file.uri,
-                        name: file.fileName || 'file',
-                        type: file.mimeType || 'application/octet-stream',
+                        name: file.fileName || file.uri.split('/').pop() || 'file',
+                        type: file.mimeType || 'image/jpeg',
                     });
-                });
 
-                await client.post(`/api/tickets/${newTicket.ticketCode}/attachments`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
+                    await client.post(`/api/tickets/${newTicket.ticketCode}/attachments`, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                }
             }
 
             set({ isCreating: false });
@@ -85,29 +91,30 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
     fetchTicketResponses: async (ticketCode) => {
         const response = await client.get(`/api/tickets/${ticketCode}/responses`);
-        set({ currentTicketResponses: response.data.data });
+        const responses = response.data.data.map(mapTicketResponse);
+        set({ currentTicketResponses: responses });
     },
 
     createResponse: async (ticketCode, content, attachments = []) => {
         // 1. Create response
         const response = await client.post(`/api/tickets/${ticketCode}/responses`, { content });
-        const newResponse = response.data.data;
+        const newResponse = mapTicketResponse(response.data.data); // Map the new response
 
         // 2. Upload attachments if any
         if (attachments.length > 0) {
-            const formData = new FormData();
-            attachments.forEach((file) => {
+            for (const file of attachments) {
+                const formData = new FormData();
                 // @ts-ignore
-                formData.append('files', {
+                formData.append('file', {
                     uri: file.uri,
-                    name: file.fileName || 'file',
-                    type: file.mimeType || 'application/octet-stream',
+                    name: file.fileName || file.uri.split('/').pop() || 'file',
+                    type: file.mimeType || 'image/jpeg',
                 });
-            });
 
-            await client.post(`/api/tickets/${ticketCode}/responses/${newResponse.id}/attachments`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+                await client.post(`/api/tickets/${ticketCode}/responses/${newResponse.id}/attachments`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+            }
         }
 
         // Refresh responses
@@ -131,3 +138,73 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         await get().fetchTicket(ticketCode);
     },
 }));
+
+// Helper to map API response (snake_case) to Ticket interface (camelCase)
+const mapTicket = (data: any): Ticket => ({
+    id: data.id,
+    ticketCode: data.ticket_code,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    lastResponseAuthorType: data.last_response_author_type,
+    company: {
+        id: data.company?.id,
+        name: data.company?.name,
+        logoUrl: data.company?.logo_url || data.company?.logoUrl || null, // Handle both cases just in case
+    },
+    category: data.category ? {
+        id: data.category.id,
+        name: data.category.name,
+    } : null,
+    createdBy: {
+        id: data.created_by_user?.id,
+        displayName: data.created_by_user?.name,
+    },
+    ownerAgent: data.owner_agent ? {
+        id: data.owner_agent.id,
+        displayName: data.owner_agent.name,
+        avatarUrl: data.owner_agent.avatar_url || null,
+    } : null,
+    rating: data.rating ? {
+        rating: data.rating.rating,
+        comment: data.rating.comment,
+        createdAt: data.rating.created_at,
+    } : null,
+    attachmentsCount: data.attachments_count || 0,
+    responsesCount: data.responses_count || 0,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    firstResponseAt: data.timeline?.first_response_at || null,
+    resolvedAt: data.resolved_at,
+    closedAt: data.closed_at,
+});
+
+const mapAttachment = (data: any): any => ({
+    id: data.id,
+    ticketId: data.ticket_id,
+    responseId: data.response_id,
+    fileName: data.file_name || data.name,
+    fileUrl: data.file_url || data.url,
+    fileType: data.file_type || data.mime_type,
+    fileSizeBytes: data.file_size_bytes || data.size,
+    uploadedBy: {
+        id: data.uploaded_by?.id,
+        displayName: data.uploaded_by?.name,
+    },
+    createdAt: data.created_at,
+});
+
+const mapTicketResponse = (data: any): TicketResponse => ({
+    id: data.id,
+    ticketId: data.ticket_id,
+    authorId: data.author_id,
+    content: data.content,
+    authorType: data.author_type,
+    createdAt: data.created_at,
+    author: {
+        id: data.author?.id,
+        displayName: data.author?.name,
+        avatarUrl: data.author?.avatar_url || null,
+    },
+    attachments: (data.attachments || []).map(mapAttachment),
+});

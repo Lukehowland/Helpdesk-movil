@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Avatar, List, Divider, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,12 +7,13 @@ import { useAuthStore } from '@/stores/authStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
+import * as ImagePicker from 'expo-image-picker';
 
 import { ProfileSkeleton } from '../../components/Skeleton';
 
 export default function ProfileScreen() {
     const router = useRouter();
-    const { user, logout, isLoading, refreshToken, invalidateToken } = useAuthStore();
+    const { user, logout, isLoading, refreshToken, invalidateToken, updateAvatar, isUploadingAvatar } = useAuthStore();
 
     const handleLogout = () => {
         Alert.alert(
@@ -48,6 +49,24 @@ export default function ProfileScreen() {
         );
     };
 
+    const handlePickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled) {
+                await updateAvatar(result.assets[0].uri);
+                Alert.alert('Éxito', 'Foto de perfil actualizada correctamente');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo actualizar la foto de perfil');
+        }
+    };
+
     if (isLoading) {
         return <ProfileSkeleton />;
     }
@@ -75,9 +94,14 @@ export default function ProfileScreen() {
                         )}
                         <TouchableOpacity
                             className="absolute bottom-0 right-0 bg-white rounded-full p-1 border border-gray-200 shadow-sm"
-                            onPress={() => router.push('/profile/edit')}
+                            onPress={handlePickImage}
+                            disabled={isUploadingAvatar}
                         >
-                            <MaterialCommunityIcons name="camera" size={20} color="#4b5563" />
+                            {isUploadingAvatar ? (
+                                <ActivityIndicator size="small" color="#4b5563" />
+                            ) : (
+                                <MaterialCommunityIcons name="camera" size={20} color="#4b5563" />
+                            )}
                         </TouchableOpacity>
                     </View>
 
