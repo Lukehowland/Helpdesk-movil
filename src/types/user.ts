@@ -1,26 +1,23 @@
 export interface User {
-    id: string; // UUID
-    userCode: string; // USR-2025-00001
+    id: string;
+    userCode: string;
     email: string;
     status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
     emailVerified: boolean;
     emailVerifiedAt: string | null;
     lastLoginAt: string | null;
     createdAt: string;
-    profile: {
-        firstName: string;
-        lastName: string;
-        displayName: string;
-        phoneNumber: string | null;
-        avatarUrl: string | null;
-        theme: 'light' | 'dark';
-        language: 'es' | 'en';
-        timezone: string;
-        pushWebNotifications: boolean;
-        notificationsTickets: boolean;
-    };
-
-    roleContexts: Array<{
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    phoneNumber: string | null;
+    avatarUrl: string | null;
+    theme: 'light' | 'dark';
+    language: 'es' | 'en';
+    timezone: string;
+    pushWebNotifications: boolean;
+    notificationsTickets: boolean;
+    roleContext: Array<{
         roleCode: 'USER';
         roleName: string;
         dashboardPath: string;

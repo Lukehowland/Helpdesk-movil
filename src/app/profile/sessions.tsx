@@ -1,6 +1,7 @@
 import { View, FlatList, Text, Alert, RefreshControl } from 'react-native';
+import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { List, Button, Chip } from 'react-native-paper';
-import { useUserStore, Session } from '../../../stores/userStore';
+import { useUserStore, Session } from '../../stores/userStore';
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -122,6 +123,7 @@ export default function SessionsScreen() {
 
     return (
         <View className="flex-1 bg-gray-50">
+            <ScreenHeader title="Sesiones Activas" showBack={true} />
             <FlatList
                 data={sessions}
                 renderItem={renderItem}

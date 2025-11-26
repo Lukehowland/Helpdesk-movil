@@ -5,13 +5,23 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { PaperProvider } from 'react-native-paper';
+import { theme } from '../constants/theme';
+
+import { initGlobalErrorHandler } from '../utils/errorHandler';
+
+import { ErrorBoundary } from '../components/ErrorBoundary';
+
+// Initialize global error handler
+initGlobalErrorHandler();
 
 export default function RootLayout() {
     return (
         <SafeAreaProvider>
-            <PaperProvider>
+            <PaperProvider theme={theme}>
                 <StatusBar style="auto" />
-                <Slot />
+                <ErrorBoundary>
+                    <Slot />
+                </ErrorBoundary>
             </PaperProvider>
         </SafeAreaProvider>
     );

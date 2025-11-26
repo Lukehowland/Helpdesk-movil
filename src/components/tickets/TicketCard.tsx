@@ -52,17 +52,21 @@ export function TicketCard({ ticket }: TicketCardProps) {
             </Text>
 
             <View className="flex-row items-center mb-3">
-                {ticket.company.logoUrl ? (
-                    <Avatar.Image size={20} source={{ uri: ticket.company.logoUrl }} />
-                ) : (
-                    <Avatar.Text size={20} label={ticket.company.name.substring(0, 2)} />
-                )}
-                <Text className="text-gray-600 text-xs ml-2">{ticket.company.name}</Text>
+                {ticket.company ? (
+                    <>
+                        {ticket.company.logoUrl ? (
+                            <Avatar.Image size={20} source={{ uri: ticket.company.logoUrl }} />
+                        ) : (
+                            <Avatar.Text size={20} label={ticket.company.name.substring(0, 2)} />
+                        )}
+                        <Text className="text-gray-600 text-xs ml-2">{ticket.company.name}</Text>
+                    </>
+                ) : null}
             </View>
 
             <View className="flex-row justify-between items-center border-t border-gray-100 pt-3">
                 <Text className="text-gray-400 text-xs">
-                    {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: es })}
+                    {ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: es }) : '-'}
                 </Text>
 
                 <View className="flex-row items-center">

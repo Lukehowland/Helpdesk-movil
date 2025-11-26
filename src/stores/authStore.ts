@@ -43,7 +43,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 throw new Error('Invalid response structure');
             }
 
-            const { accessToken, user } = response.data;
+            const { accessToken, user: rawUser } = response.data;
+
+            // Normalize user data
+            const user = (rawUser as any).profile
+                ? { ...rawUser, ...(rawUser as any).profile }
+                : rawUser;
 
             await tokenStorage.setAccessToken(accessToken);
             set({ accessToken, user, isAuthenticated: true });
@@ -124,16 +129,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 return;
             }
 
-            // Verify token validity or get user profile
-            const response = await client.get('/api/auth/status'); // or /api/users/me
-            // Prompt says: GET /api/auth/status -> Estado de autenticación
-
             // If status is good, maybe fetch user details if not included
             const userResponse = await client.get('/api/users/me');
             console.log('CHECK_AUTH USER RESPONSE:', JSON.stringify(userResponse.data, null, 2));
 
             // Handle both flat and nested structure
-            const userData = userResponse.data.data || userResponse.data;
+            const rawData = userResponse.data.data || userResponse.data;
+
+            // Normalize user data: flatten profile if it exists
+            const userData = (rawData as any).profile
+                ? { ...rawData, ...(rawData as any).profile }
+                : rawData;
 
             set({
                 accessToken: token,

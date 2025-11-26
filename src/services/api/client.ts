@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from '../storage/tokenStorage';
 import { router } from 'expo-router';
+import { logger } from '../../utils/logger';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -19,9 +20,19 @@ client.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        logger.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+            headers: config.headers,
+            data: config.data,
+            params: config.params
+        }, 'API');
+
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        logger.error(`API Request Error`, error, 'API');
+        return Promise.reject(error);
+    }
 );
 
 // Response Interceptor
@@ -51,9 +62,20 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 client.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        logger.debug(`API Response: ${response.status} ${response.config.url}`, {
+            data: response.data
+        }, 'API');
+        return response;
+    },
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+        logger.error(`API Error: ${error.response?.status || 'Network'} ${originalRequest?.url}`, {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message
+        }, 'API');
 
         if (error.response?.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
@@ -66,22 +88,11 @@ client.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                // Call refresh endpoint
-                // We use a separate axios call or the same client but skip interceptor if needed?
-                // Usually refresh endpoint doesn't need access token, it uses cookie.
-                // But if we use 'client', it will attach the old (invalid) token.
-                // It's better to use a clean instance or just axios.post
                 const response = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, {
                     withCredentials: true,
                 });
 
-                const { data } = response.data; // Assuming structure { success: true, data: { accessToken: '...' } }
-                // Adjust based on actual API response structure for refresh
-                // Prompt says: "Refrescar access token" -> returns new access token?
-                // Let's assume standard response format: { success: true, data: { accessToken: string } }
-
-                // Wait, prompt says "Formato de Respuestas: JSON con estructura { success: boolean, data: T, message?: string }"
-
+                const { data } = response.data;
                 const newAccessToken = data?.accessToken;
 
                 if (newAccessToken) {

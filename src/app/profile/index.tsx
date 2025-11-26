@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ScreenHeader } from '../../components/layout/ScreenHeader';
 
 export default function ProfileScreen() {
     const router = useRouter();
@@ -32,7 +33,7 @@ export default function ProfileScreen() {
 
     if (!user) return null;
 
-    const initials = (user.profile.displayName || 'Usuario')
+    const initials = (user.displayName || 'Usuario')
         .split(' ')
         .map((n) => n[0])
         .join('')
@@ -40,26 +41,27 @@ export default function ProfileScreen() {
         .toUpperCase();
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 bg-gray-50">
+            <ScreenHeader title="Perfil" showBack={true} />
             <ScrollView>
                 {/* Header */}
                 <View className="bg-white p-6 items-center border-b border-gray-200">
                     <View className="relative">
-                        {user.profile.avatarUrl ? (
-                            <Avatar.Image size={80} source={{ uri: user.profile.avatarUrl }} />
+                        {user.avatarUrl ? (
+                            <Avatar.Image size={80} source={{ uri: user.avatarUrl }} />
                         ) : (
                             <Avatar.Text size={80} label={initials} className="bg-blue-600" />
                         )}
                         <TouchableOpacity
                             className="absolute bottom-0 right-0 bg-white rounded-full p-1 border border-gray-200 shadow-sm"
-                            onPress={() => router.push('/(tabs)/profile/edit')}
+                            onPress={() => router.push('/profile/edit')}
                         >
                             <MaterialCommunityIcons name="camera" size={20} color="#4b5563" />
                         </TouchableOpacity>
                     </View>
 
                     <Text className="text-xl font-bold mt-4 text-gray-900">
-                        {user.profile.displayName}
+                        {user.displayName}
                     </Text>
                     <Text className="text-gray-500">{user.email}</Text>
 
@@ -105,28 +107,28 @@ export default function ProfileScreen() {
                         title="Editar Perfil"
                         left={(props) => <List.Icon {...props} icon="account-edit" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/(tabs)/profile/edit')}
+                        onPress={() => router.push('/profile/edit')}
                     />
                     <Divider />
                     <List.Item
                         title="Preferencias"
                         left={(props) => <List.Icon {...props} icon="cog" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/(tabs)/profile/preferences')}
+                        onPress={() => router.push('/profile/preferences')}
                     />
                     <Divider />
                     <List.Item
                         title="Sesiones Activas"
                         left={(props) => <List.Icon {...props} icon="devices" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/(tabs)/profile/sessions')}
+                        onPress={() => router.push('/profile/sessions')}
                     />
                     <Divider />
                     <List.Item
                         title="Cambiar Contraseña"
                         left={(props) => <List.Icon {...props} icon="lock-reset" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/(tabs)/profile/change-password')}
+                        onPress={() => router.push('/profile/change-password')}
                     />
                 </View>
 
@@ -144,6 +146,6 @@ export default function ProfileScreen() {
                     </Text>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }

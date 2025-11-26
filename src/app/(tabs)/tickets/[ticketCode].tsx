@@ -95,12 +95,12 @@ export default function TicketDetailScreen() {
                 </Text>
 
                 <View className="flex-row items-center mt-3">
-                    {currentTicket.company.logoUrl ? (
+                    {currentTicket.company?.logoUrl ? (
                         <Avatar.Image size={24} source={{ uri: currentTicket.company.logoUrl }} />
                     ) : (
-                        <Avatar.Text size={24} label={currentTicket.company.name.substring(0, 2)} />
+                        <Avatar.Text size={24} label={currentTicket.company?.name?.substring(0, 2) || 'NA'} />
                     )}
-                    <Text className="text-gray-600 ml-2 font-medium">{currentTicket.company.name}</Text>
+                    <Text className="text-gray-600 ml-2 font-medium">{currentTicket.company?.name || 'Sin Empresa'}</Text>
                 </View>
             </View>
 

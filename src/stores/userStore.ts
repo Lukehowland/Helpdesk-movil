@@ -4,8 +4,8 @@ import { client } from '../services/api/client';
 import { useAuthStore } from './authStore';
 
 interface UserState {
-    updateProfile: (data: Partial<User['profile']>) => Promise<void>;
-    updatePreferences: (data: Partial<User['profile']>) => Promise<void>;
+    updateProfile: (data: Partial<Pick<User, 'firstName' | 'lastName' | 'displayName' | 'phoneNumber' | 'avatarUrl'>>) => Promise<void>;
+    updatePreferences: (data: Partial<Pick<User, 'theme' | 'language' | 'timezone' | 'pushWebNotifications' | 'notificationsTickets'>>) => Promise<void>;
     fetchSessions: () => Promise<Session[]>;
     revokeSession: (sessionId: string) => Promise<void>;
     revokeAllOtherSessions: () => Promise<void>;
@@ -28,7 +28,7 @@ export const useUserStore = create<UserState>((set, get) => ({
             useAuthStore.setState({
                 user: {
                     ...currentUser,
-                    profile: { ...currentUser.profile, ...data },
+                    ...data,
                 },
             });
         }
@@ -41,7 +41,7 @@ export const useUserStore = create<UserState>((set, get) => ({
             useAuthStore.setState({
                 user: {
                     ...currentUser,
-                    profile: { ...currentUser.profile, ...data },
+                    ...data,
                 },
             });
         }

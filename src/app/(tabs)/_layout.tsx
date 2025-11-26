@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
+import { GlobalHeader } from '../../components/layout/GlobalHeader';
 
 export default function TabsLayout() {
     const theme = useTheme();
@@ -8,15 +9,16 @@ export default function TabsLayout() {
     return (
         <Tabs
             screenOptions={{
-                headerShown: false,
-                tabBarActiveTintColor: '#007bff',
-                tabBarInactiveTintColor: '#6c757d',
+                header: () => <GlobalHeader />,
+                tabBarActiveTintColor: theme.colors.primary[600],
+                tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
                 tabBarStyle: {
                     borderTopWidth: 1,
-                    borderTopColor: '#e5e7eb',
+                    borderTopColor: theme.colors.outlineVariant,
                     height: 60,
                     paddingBottom: 8,
                     paddingTop: 8,
+                    backgroundColor: theme.colors.surface,
                 },
             }}
         >
@@ -48,20 +50,20 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="content"
+                name="announcements"
                 options={{
-                    title: 'Contenido',
+                    title: 'Anuncios',
                     tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="newspaper" size={size} color={color} />
+                        <MaterialCommunityIcons name="bullhorn" size={size} color={color} />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="profile"
+                name="help"
                 options={{
-                    title: 'Perfil',
+                    title: 'Ayuda',
                     tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="account" size={size} color={color} />
+                        <MaterialCommunityIcons name="help-circle" size={size} color={color} />
                     ),
                 }}
             />
