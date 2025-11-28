@@ -1,19 +1,25 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, Platform, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import Animated, { FadeIn, ZoomIn, FadeOut, ZoomOut } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Avatar, List, Divider, Button } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import * as ImagePicker from 'expo-image-picker';
+import { BlurView } from 'expo-blur';
 
 import { ProfileSkeleton } from '../../components/Skeleton';
 
 export default function ProfileScreen() {
     const router = useRouter();
     const { user, logout, isLoading, refreshToken, invalidateToken, updateAvatar, isUploadingAvatar } = useAuthStore();
+    const [showImagePreview, setShowImagePreview] = React.useState(false);
+    const insets = useSafeAreaInsets();
+    const { height: screenHeight } = Dimensions.get('screen');
 
     const handleLogout = () => {
         Alert.alert(
@@ -87,11 +93,13 @@ export default function ProfileScreen() {
                 {/* Header */}
                 <View className="bg-white p-6 items-center border-b border-gray-200">
                     <View className="relative">
-                        {user.avatarUrl ? (
-                            <Avatar.Image size={80} source={{ uri: user.avatarUrl }} />
-                        ) : (
-                            <Avatar.Text size={80} label={initials} className="bg-blue-600" />
-                        )}
+                        <TouchableOpacity onPress={() => setShowImagePreview(true)}>
+                            {user.avatarUrl ? (
+                                <Avatar.Image size={80} source={{ uri: user.avatarUrl }} />
+                            ) : (
+                                <Avatar.Text size={80} label={initials} className="bg-blue-600" />
+                            )}
+                        </TouchableOpacity>
                         <TouchableOpacity
                             className="absolute bottom-0 right-0 bg-white rounded-full p-1 border border-gray-200 shadow-sm"
                             onPress={handlePickImage}
@@ -117,9 +125,11 @@ export default function ProfileScreen() {
                         </View>
                     )}
 
-                    <Text className="text-gray-400 text-xs mt-2">
-                        Miembro desde {format(new Date(user.createdAt), 'MMMM yyyy', { locale: es })}
-                    </Text>
+                    {user.createdAt && (
+                        <Text className="text-gray-400 text-xs mt-2">
+                            Miembro desde {format(new Date(user.createdAt), 'MMMM yyyy', { locale: es })}
+                        </Text>
+                    )}
                 </View>
 
                 {/* Stats */}
@@ -207,6 +217,57 @@ export default function ProfileScreen() {
                     </Text>
                 </View>
             </ScrollView>
+
+            <Modal
+                visible={showImagePreview}
+                transparent={true}
+                onRequestClose={() => setShowImagePreview(false)}
+                animationType="fade"
+                statusBarTranslucent={true}
+                navigationBarTranslucent={true}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowImagePreview(false)}>
+                    <BlurView
+                        intensity={20}
+                        tint="dark"
+                        className="flex-1 justify-center items-center relative"
+                        style={{ height: screenHeight, width: '100%' }}
+                    >
+                        <TouchableOpacity
+                            className="absolute right-4 z-10 p-2 bg-white/20 rounded-full"
+                            style={{ top: insets.top + 16 }}
+                            onPress={() => setShowImagePreview(false)}
+                        >
+                            <MaterialCommunityIcons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+
+                        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                            <Animated.View
+                                entering={ZoomIn.duration(300)}
+                                exiting={ZoomOut.duration(300)}
+                                className="items-center p-4"
+                                style={{ paddingBottom: insets.bottom }}
+                            >
+                                {user.avatarUrl ? (
+                                    <Animated.Image
+                                        source={{ uri: user.avatarUrl }}
+                                        className="w-80 h-80 rounded-full shadow-2xl border-2 border-white/50"
+                                        style={{ objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <View className="w-80 h-80 rounded-full bg-blue-600 items-center justify-center shadow-2xl border-2 border-white/50">
+                                        <Text className="text-white text-8xl font-bold">{initials}</Text>
+                                    </View>
+                                )}
+                                <View className="mt-8 items-center">
+                                    <Text className="text-white text-2xl font-bold text-center">{user.displayName}</Text>
+                                    <Text className="text-gray-400 text-base mt-1 text-center">{user.email}</Text>
+                                </View>
+                            </Animated.View>
+                        </TouchableWithoutFeedback>
+                    </BlurView>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 }

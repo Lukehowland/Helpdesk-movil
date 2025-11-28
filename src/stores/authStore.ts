@@ -116,15 +116,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     refreshToken: async () => {
         try {
+            console.log('🔄 Manual refresh token attempt...');
             const response = await client.post('/api/auth/refresh');
-            const accessToken = response.data.data?.accessToken || response.data.accessToken;
+            console.log('🔄 Refresh response:', JSON.stringify(response.data, null, 2));
+
+            const { data } = response.data;
+            const accessToken = data?.accessToken || response.data.accessToken;
+
             if (!accessToken) {
+                console.error('❌ No access token in refresh response:', response.data);
                 throw new Error('No access token in refresh response');
             }
+
             await tokenStorage.setAccessToken(accessToken);
+            client.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
             set({ accessToken });
+            console.log('✅ Token refreshed successfully');
             return true;
-        } catch (error) {
+        } catch (error: any) {
+            console.error('❌ Refresh token error:', {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+            });
             return false;
         }
     },

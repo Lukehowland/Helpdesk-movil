@@ -128,7 +128,7 @@ export default function HomeScreen() {
                     <View>
                         <Text className="text-blue-600 text-lg font-semibold">Bienvenido,</Text>
                         <Text className="text-4xl font-bold text-gray-900">
-                            {user?.firstName || user?.displayName || 'Usuario'}
+                            {user?.firstName || user?.displayName?.split(' ')[0] || 'Usuario'}
                         </Text>
                     </View>
                     <TouchableOpacity onPress={playDoubleWaveAnimation}>
