@@ -67,20 +67,19 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            // Mark as deleting to start animation
+                            // Mark as deleting to start animation (333ms)
                             setDeletingSessionIds((prev) => new Set(prev).add(id));
 
-                            // Run API call and animation in parallel
-                            // Animation duration is 800ms, so give it that time before removing
-                            const [apiResult] = await Promise.all([
-                                revokeSession(id).catch((error) => {
-                                    console.error('Error revoking session:', error);
-                                    throw error;
-                                }),
-                                new Promise((resolve) => setTimeout(resolve, 800)),
-                            ]);
+                            // Wait for animation to complete
+                            await new Promise((resolve) => setTimeout(resolve, 333));
 
-                            // Only remove from state after both animation and API complete
+                            // Make API call
+                            await revokeSession(id).catch((error) => {
+                                console.error('Error revoking session:', error);
+                                throw error;
+                            });
+
+                            // Remove from state after animation and API complete
                             setSessions((prev) => prev.filter((s) => s.id !== id));
                             setDeletingSessionIds((prev) => {
                                 const newSet = new Set(prev);
@@ -114,34 +113,50 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            // Mark all non-current sessions for deletion
-                            const nonCurrentIds = new Set(
-                                sessions.filter((s) => !s.isCurrent).map((s) => s.id)
-                            );
-                            setDeletingSessionIds(nonCurrentIds);
+                            // Get non-current sessions in order
+                            const nonCurrentSessions = sessions.filter((s) => !s.isCurrent);
 
-                            // Run API call and animations in parallel
-                            // Animation duration is 800ms, so ensure at least that much time passes
-                            try {
-                                await Promise.all([
-                                    revokeAllOtherSessions().catch((error) => {
-                                        console.error('Error revoking sessions:', error);
+                            if (nonCurrentSessions.length === 0) {
+                                return;
+                            }
+
+                            // Eliminate each session sequentially with animation
+                            for (const session of nonCurrentSessions) {
+                                try {
+                                    // Mark as deleting to start animation (333ms)
+                                    setDeletingSessionIds((prev) => new Set(prev).add(session.id));
+
+                                    // Wait for animation to complete
+                                    await new Promise((resolve) => setTimeout(resolve, 333));
+
+                                    // Make API call
+                                    await revokeSession(session.id).catch((error) => {
+                                        console.error(`Error revoking session ${session.id}:`, error);
                                         throw error;
-                                    }),
-                                    new Promise((resolve) => setTimeout(resolve, 800)),
-                                ]);
+                                    });
 
-                                // Only remove from state after both animation and API complete
-                                setSessions((prev) => prev.filter((s) => s.isCurrent));
-                                setDeletingSessionIds(new Set());
-                            } catch (error) {
-                                console.error('Error during bulk session revocation:', error);
-                                // Reload to show correct state
-                                loadSessions();
-                                Alert.alert('Error', 'No se pudieron cerrar todas las sesiones');
+                                    // Remove from state
+                                    setSessions((prev) => prev.filter((s) => s.id !== session.id));
+                                    setDeletingSessionIds((prev) => {
+                                        const newSet = new Set(prev);
+                                        newSet.delete(session.id);
+                                        return newSet;
+                                    });
+                                } catch (error) {
+                                    console.error(`Failed to revoke session ${session.id}:`, error);
+                                    // Cancel animation if API fails
+                                    setDeletingSessionIds((prev) => {
+                                        const newSet = new Set(prev);
+                                        newSet.delete(session.id);
+                                        return newSet;
+                                    });
+                                    Alert.alert('Error', `No se pudo cerrar sesión ${session.id}`);
+                                    // Continue with next session instead of stopping
+                                    continue;
+                                }
                             }
                         } catch (error) {
-                            Alert.alert('Error', 'No se pudieron cerrar las sesiones');
+                            Alert.alert('Error', 'No se pudieron cerrar todas las sesiones');
                         }
                     },
                 },
@@ -163,9 +178,11 @@ export default function SessionsScreen() {
         const lastUsedDate = format(new Date(item.lastUsedAt), "d 'de' MMMM 'a las' HH:mm", { locale: es });
 
         // Alternate animation direction: even index = right, odd index = left
+        // Each animation lasts 333ms (1/3 second)
         const getExitingAnimation = () => {
             if (!isDeleting) return undefined;
-            return index % 2 === 0 ? new SlideOutRight() : new SlideOutLeft();
+            const baseAnimation = index % 2 === 0 ? new SlideOutRight() : new SlideOutLeft();
+            return (baseAnimation as any).withDuration(333);
         };
 
         return (
