@@ -67,11 +67,11 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            // Mark as deleting to start animation (333ms)
+                            // Mark as deleting to start animation
                             setDeletingSessionIds((prev) => new Set(prev).add(id));
 
-                            // Wait for animation to complete
-                            await new Promise((resolve) => setTimeout(resolve, 333));
+                            // Wait for animation to complete (400ms to ensure visibility)
+                            await new Promise((resolve) => setTimeout(resolve, 400));
 
                             // Make API call
                             await revokeSession(id).catch((error) => {
@@ -123,11 +123,11 @@ export default function SessionsScreen() {
                             // Eliminate each session sequentially with animation
                             for (const session of nonCurrentSessions) {
                                 try {
-                                    // Mark as deleting to start animation (333ms)
+                                    // Mark as deleting to start animation
                                     setDeletingSessionIds((prev) => new Set(prev).add(session.id));
 
-                                    // Wait for animation to complete
-                                    await new Promise((resolve) => setTimeout(resolve, 333));
+                                    // Wait for animation to complete (400ms to ensure visibility)
+                                    await new Promise((resolve) => setTimeout(resolve, 400));
 
                                     // Make API call
                                     await revokeSession(session.id).catch((error) => {
@@ -181,8 +181,11 @@ export default function SessionsScreen() {
         // Each animation lasts 333ms (1/3 second)
         const getExitingAnimation = () => {
             if (!isDeleting) return undefined;
-            const baseAnimation = index % 2 === 0 ? new SlideOutRight() : new SlideOutLeft();
-            return (baseAnimation as any).withDuration(333);
+            if (index % 2 === 0) {
+                return new SlideOutRight();
+            } else {
+                return new SlideOutLeft();
+            }
         };
 
         return (
