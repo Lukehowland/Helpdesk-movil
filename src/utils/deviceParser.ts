@@ -57,7 +57,24 @@ export function parseUserAgent(userAgent: string | null, deviceName: string | nu
     } else if (ua.includes('okhttp')) {
         browser = 'Aplicación Móvil';
         type = 'mobile';
-        icon = 'android';
+        // Try to detect OS from deviceName since okhttp doesn't include OS info
+        if (deviceName) {
+            const name = deviceName.toLowerCase();
+            if (name.includes('android')) {
+                os = 'Android';
+                icon = 'android';
+            } else if (name.includes('iphone')) {
+                os = 'iOS';
+                icon = 'apple';
+            } else if (name.includes('ipad')) {
+                os = 'iOS';
+                icon = 'apple';
+            } else {
+                icon = 'android'; // Default to android for mobile app
+            }
+        } else {
+            icon = 'android';
+        }
     }
 
     // Detect Device Type if not set
