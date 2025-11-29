@@ -9,7 +9,7 @@ import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { parseUserAgent, formatLocation, getCountryFlag } from '../../utils/deviceParser';
-import Animated, { FadeOut, SlideOutRight, SlideOutLeft, ZoomOut, runOnJS, Layout } from 'react-native-reanimated';
+import Animated, { FadeOut, SlideOutRight, SlideOutLeft, ZoomOut, ZoomIn, runOnJS, Layout } from 'react-native-reanimated';
 
 export default function SessionsScreen() {
     const fetchSessions = useUserStore((state) => state.fetchSessions);
@@ -128,11 +128,11 @@ export default function SessionsScreen() {
                                 return;
                             }
 
-                            // Trigger button animation (zoom out + fade)
+                            // Trigger button animation (zoom in + fade flash)
                             setIsDeletingAllMode(true);
 
-                            // Wait for button animation to complete (250ms)
-                            await new Promise((resolve) => setTimeout(resolve, 250));
+                            // Wait for button animation to complete (150ms)
+                            await new Promise((resolve) => setTimeout(resolve, 150));
 
                             // Reverse to eliminate from bottom to top
                             const reversedSessions = [...nonCurrentSessions].reverse();
@@ -322,7 +322,7 @@ export default function SessionsScreen() {
                         }
                         return (
                             <Animated.View
-                                exiting={new ZoomOut()}
+                                exiting={new ZoomIn()}
                                 className="px-4 pb-6 pt-2"
                             >
                                 <TouchableOpacity
