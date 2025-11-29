@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 interface ScreenHeaderProps {
     title: string;
@@ -24,6 +25,7 @@ export const ScreenHeader = ({
     transparent = false
 }: ScreenHeaderProps) => {
     const router = useRouter();
+    const { back, replace } = useDebounceNavigation();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
 
@@ -31,10 +33,10 @@ export const ScreenHeader = ({
         if (onBack) {
             onBack();
         } else if (router.canGoBack()) {
-            router.back();
+            back();
         } else {
             // Fallback if no history, e.g. from deep link
-            router.replace('/(tabs)/home');
+            replace('/(tabs)/home');
         }
     };
 

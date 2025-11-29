@@ -11,6 +11,15 @@ interface UserState {
     revokeAllOtherSessions: () => Promise<void>;
 }
 
+export interface Location {
+    city: string | null;
+    country: string | null;
+    country_code: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    timezone: string | null;
+}
+
 export interface Session {
     id: string;
     deviceName: string | null;
@@ -19,7 +28,7 @@ export interface Session {
     lastUsedAt: string;
     expiresAt: string;
     isCurrent: boolean;
-    location: string | null;
+    location: Location | null;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({

@@ -5,14 +5,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { TicketCard } from '@/components/tickets/TicketCard';
 import { debounce } from 'lodash';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { TicketCardSkeleton } from '@/components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 export default function MyTicketsScreen() {
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
     const { tickets, fetchTickets, isLoading } = useTicketStore();
     const user = useAuthStore((state) => state.user);
 
@@ -126,7 +126,7 @@ export default function MyTicketsScreen() {
                                 Crea un nuevo ticket para solicitar ayuda a las empresas que sigues.
                             </Text>
                             <TouchableOpacity
-                                onPress={() => router.push('/(tabs)/tickets/create')}
+                                onPress={() => push('/(tabs)/tickets/create')}
                                 className="mt-6 bg-blue-50 px-6 py-3 rounded-full"
                             >
                                 <Text className="text-blue-600 font-bold">Crear mi primer ticket</Text>
@@ -146,7 +146,7 @@ export default function MyTicketsScreen() {
                     backgroundColor: '#2563eb',
                 }}
                 color="white"
-                onPress={() => router.push('/(tabs)/tickets/create')}
+                onPress={() => push('/(tabs)/tickets/create')}
             />
         </SafeAreaView>
     );

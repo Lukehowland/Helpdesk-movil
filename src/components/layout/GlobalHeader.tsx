@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { useAuthStore } from '../../stores/authStore';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 export const GlobalHeader = () => {
     const { user } = useAuthStore();
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
 
@@ -21,7 +21,7 @@ export const GlobalHeader = () => {
     };
 
     const handleProfilePress = () => {
-        router.push('/profile');
+        push('/profile');
     };
 
     return (

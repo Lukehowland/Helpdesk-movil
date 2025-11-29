@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Text } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import { useRouter } from 'expo-router';
 import { useArticleStore } from '../../stores/articleStore';
 import { CategoryGrid } from '../../components/help/CategoryGrid';
 import { ArticleCard } from '../../components/help/ArticleCard';
@@ -9,10 +8,11 @@ import { ArticleCategory } from '../../types/article';
 import { CategoryGridSkeleton, ListItemSkeleton } from '../../components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 export default function HelpScreen() {
     const theme = useTheme();
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
     const {
         categories,
         popularArticles,
@@ -30,11 +30,11 @@ export default function HelpScreen() {
     }, []);
 
     const handleCategoryPress = (category: ArticleCategory) => {
-        router.push(`/help/category/${category.code}`);
+        push(`/help/category/${category.code}`);
     };
 
     const handleArticlePress = (id: string) => {
-        router.push(`/help/article/${id}`);
+        push(`/help/article/${id}`);
     };
 
     return (

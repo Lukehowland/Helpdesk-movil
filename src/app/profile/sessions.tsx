@@ -1,12 +1,14 @@
-import { View, FlatList, Text, Alert, RefreshControl, TouchableOpacity, ScrollView } from 'react-native';
+import { View, FlatList, Text, Alert, RefreshControl, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { Card, Button, Chip, Divider } from 'react-native-paper';
+import { Button, Chip, Divider } from 'react-native-paper';
+import { CardSkeleton } from '../../components/Skeleton';
 import { useUserStore, Session } from '../../stores/userStore';
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { parseUserAgent, formatLocation, getCountryFlag } from '../../utils/deviceParser';
 
 export default function SessionsScreen() {
     const fetchSessions = useUserStore((state) => state.fetchSessions);
@@ -38,6 +40,19 @@ export default function SessionsScreen() {
         setRefreshing(true);
         loadSessions();
     };
+
+    if (loading && !refreshing) {
+        return (
+            <View className="flex-1 bg-gray-50 p-4">
+                <ScreenHeader title="Sesiones Activas" showBack={true} />
+                <View className="mt-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <CardSkeleton key={i} />
+                    ))}
+                </View>
+            </View>
+        );
+    }
 
     const handleRevoke = (id: string) => {
         Alert.alert(
@@ -83,145 +98,132 @@ export default function SessionsScreen() {
         );
     };
 
-    const getDeviceIcon = (deviceName: string | null) => {
-        if (!deviceName) return 'devices';
-        const lower = deviceName.toLowerCase();
-        if (lower.includes('mobile') || lower.includes('android') || lower.includes('ios')) {
-            return 'cellphone';
-        }
-        if (lower.includes('chrome') || lower.includes('firefox') || lower.includes('safari') || lower.includes('edge')) {
-            return 'web';
-        }
-        return 'monitor';
-    };
-
     const toggleExpand = (sessionId: string) => {
         setExpandedSession(expandedSession === sessionId ? null : sessionId);
     };
 
     const renderItem = ({ item }: { item: Session }) => {
         const isExpanded = expandedSession === item.id;
+        const deviceInfo = parseUserAgent(item.userAgent, item.deviceName);
+        const locationStr = formatLocation(item.location);
+        const countryFlag = getCountryFlag(item.location?.country_code || null);
+        const timeAgo = formatDistanceToNow(new Date(item.lastUsedAt), { addSuffix: true, locale: es });
+        const lastUsedDate = format(new Date(item.lastUsedAt), "d 'de' MMMM 'a las' HH:mm", { locale: es });
 
         return (
-            <Card className="mx-4 mb-3 bg-white" elevation={1}>
-                <TouchableOpacity onPress={() => toggleExpand(item.id)}>
-                    <Card.Content>
-                        {/* Header */}
-                        <View className="flex-row items-center justify-between mb-2">
-                            <View className="flex-row items-center flex-1">
+            <View className="px-4 py-3">
+                <View className={`rounded-2xl border ${item.isCurrent ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                    {/* Header Card */}
+                    <TouchableOpacity
+                        onPress={() => toggleExpand(item.id)}
+                        activeOpacity={0.7}
+                        className="px-4 py-4"
+                    >
+                        <View className="flex-row items-center gap-3">
+                            {/* Device Icon */}
+                            <View className={`w-12 h-12 rounded-full items-center justify-center ${
+                                item.isCurrent ? 'bg-blue-200' : 'bg-gray-100'
+                            }`}>
                                 <MaterialCommunityIcons
-                                    name={getDeviceIcon(item.deviceName)}
-                                    size={32}
-                                    color="#4B5563"
-                                    style={{ marginRight: 12 }}
+                                    name={deviceInfo.icon as any}
+                                    size={28}
+                                    color={item.isCurrent ? '#1e40af' : '#6B7280'}
                                 />
-                                <View className="flex-1">
-                                    <Text className="text-base font-semibold text-gray-800">
-                                        {item.deviceName || 'Dispositivo Desconocido'}
+                            </View>
+
+                            {/* Device Info */}
+                            <View className="flex-1">
+                                <View className="flex-row items-center gap-2">
+                                    <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
+                                        {deviceInfo.displayName}
                                     </Text>
-                                    <Text className="text-xs text-gray-500">
-                                        {item.ipAddress || 'N/A'}
-                                    </Text>
-                                </View>
-                            </View>
-                            {item.isCurrent && (
-                                <Chip
-                                    mode="flat"
-                                    style={{ backgroundColor: '#D1FAE5', height: 28 }}
-                                    textStyle={{ color: '#065F46', fontSize: 11 }}
-                                >
-                                    Actual
-                                </Chip>
-                            )}
-                        </View>
-
-                        {/* Quick Info */}
-                        <View className="mt-2">
-                            <View className="flex-row items-center mb-1">
-                                <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
-                                <Text className="text-xs text-gray-600 ml-2">
-                                    Último uso: {formatDistanceToNow(new Date(item.lastUsedAt), { addSuffix: true, locale: es })}
-                                </Text>
-                            </View>
-                            <View className="flex-row items-center">
-                                <MaterialCommunityIcons name="calendar-clock" size={14} color="#6B7280" />
-                                <Text className="text-xs text-gray-600 ml-2">
-                                    Expira: {formatDistanceToNow(new Date(item.expiresAt), { addSuffix: true, locale: es })}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                            <>
-                                <Divider className="my-3" />
-                                <View>
-                                    <Text className="text-xs font-semibold text-gray-700 mb-2">Detalles Completos</Text>
-
-                                    {/* Session ID */}
-                                    <View className="mb-2">
-                                        <Text className="text-xs text-gray-500">ID de Sesión:</Text>
-                                        <Text className="text-xs text-gray-800 font-mono">{item.id}</Text>
-                                    </View>
-
-                                    {/* User Agent */}
-                                    {item.userAgent && (
-                                        <View className="mb-2">
-                                            <Text className="text-xs text-gray-500">User Agent:</Text>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                                <Text className="text-xs text-gray-800 font-mono">{item.userAgent}</Text>
-                                            </ScrollView>
-                                        </View>
-                                    )}
-
-                                    {/* Last Used Date */}
-                                    <View className="mb-2">
-                                        <Text className="text-xs text-gray-500">Último uso:</Text>
-                                        <Text className="text-xs text-gray-800">{format(new Date(item.lastUsedAt), "PPpp", { locale: es })}</Text>
-                                    </View>
-
-                                    {/* Expiration Date */}
-                                    <View className="mb-2">
-                                        <Text className="text-xs text-gray-500">Fecha de expiración:</Text>
-                                        <Text className="text-xs text-gray-800">{format(new Date(item.expiresAt), "PPpp", { locale: es })}</Text>
-                                    </View>
-
-                                    {/* Location */}
-                                    {item.location && (
-                                        <View className="mb-2">
-                                            <Text className="text-xs text-gray-500">Ubicación:</Text>
-                                            <Text className="text-xs text-gray-800">{item.location}</Text>
+                                    {item.isCurrent && (
+                                        <View className="bg-green-500 px-2 py-1 rounded-full">
+                                            <Text className="text-xs font-semibold text-white">Actual</Text>
                                         </View>
                                     )}
                                 </View>
-                            </>
-                        )}
+                                <Text className="text-xs text-gray-500 mt-1">
+                                    {deviceInfo.os} • {deviceInfo.browser}
+                                </Text>
+                                <Text className="text-xs text-gray-400 mt-0.5">{timeAgo}</Text>
+                            </View>
 
-                        {/* Expand/Collapse Indicator */}
-                        <View className="flex-row items-center justify-center mt-3">
+                            {/* Chevron */}
                             <MaterialCommunityIcons
                                 name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                                size={20}
+                                size={24}
                                 color="#9CA3AF"
                             />
                         </View>
-                    </Card.Content>
-                </TouchableOpacity>
+                    </TouchableOpacity>
 
-                {/* Revoke Button */}
-                {!item.isCurrent && (
-                    <Card.Actions>
-                        <Button
-                            mode="text"
-                            textColor="#DC2626"
-                            onPress={() => handleRevoke(item.id)}
-                            icon="close-circle-outline"
-                        >
-                            Cerrar Sesión
-                        </Button>
-                    </Card.Actions>
-                )}
-            </Card>
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                        <>
+                            <View className="border-t border-gray-100" />
+                            <View className="px-4 py-4 gap-3">
+                                {/* Location */}
+                                {item.location && (
+                                    <View>
+                                        <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
+                                            📍 Ubicación
+                                        </Text>
+                                        <View className="flex-row items-center gap-2">
+                                            <Text className="text-sm text-2xl">{countryFlag}</Text>
+                                            <View className="flex-1">
+                                                <Text className="text-sm font-medium text-gray-900">{locationStr}</Text>
+                                                {item.location.timezone && (
+                                                    <Text className="text-xs text-gray-500">{item.location.timezone}</Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* IP Address */}
+                                <View>
+                                    <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
+                                        🌐 Dirección IP
+                                    </Text>
+                                    <Text className="text-sm font-mono text-gray-700 bg-gray-50 p-2 rounded-lg">
+                                        {item.ipAddress || 'No disponible'}
+                                    </Text>
+                                </View>
+
+                                {/* Last Used */}
+                                <View>
+                                    <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
+                                        ⏰ Última actividad
+                                    </Text>
+                                    <Text className="text-sm text-gray-700">{lastUsedDate}</Text>
+                                </View>
+
+                                {/* Expiration */}
+                                <View>
+                                    <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
+                                        🔐 Expira
+                                    </Text>
+                                    <Text className="text-sm text-gray-700">
+                                        {format(new Date(item.expiresAt), "d 'de' MMMM 'a las' HH:mm", { locale: es })}
+                                    </Text>
+                                </View>
+
+                                {/* Action Button */}
+                                {!item.isCurrent && (
+                                    <TouchableOpacity
+                                        onPress={() => handleRevoke(item.id)}
+                                        className="mt-2 py-2.5 px-3 bg-red-50 rounded-lg flex-row items-center justify-center gap-2 border border-red-200"
+                                    >
+                                        <MaterialCommunityIcons name="logout" size={16} color="#DC2626" />
+                                        <Text className="text-sm font-semibold text-red-600">Cerrar esta sesión</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </>
+                    )}
+                </View>
+            </View>
         );
     };
 
@@ -234,30 +236,26 @@ export default function SessionsScreen() {
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    ListHeaderComponent={() => (
-                        <View className="px-4 pt-4 pb-4">
-                            <View className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex-row items-start mb-2">
-                                <MaterialCommunityIcons name="information" size={20} color="#2563EB" style={{ marginRight: 8, marginTop: 2 }} />
-                                <Text className="text-sm text-blue-800 flex-1">
-                                    Toca una sesión para ver más detalles. Las sesiones inactivas pueden ser cerradas.
-                                </Text>
-                            </View>
+                    contentContainerStyle={{ paddingVertical: 8 }}
+                    ListEmptyComponent={() => (
+                        <View className="flex-1 items-center justify-center py-12">
+                            <MaterialCommunityIcons name="devices" size={48} color="#D1D5DB" />
+                            <Text className="text-gray-500 mt-4 font-medium">No hay sesiones activas</Text>
                         </View>
                     )}
                     ListFooterComponent={() => (
-                        <View className="p-4">
-                            <Button
-                                mode="outlined"
-                                onPress={handleRevokeAllOthers}
-                                textColor="#DC2626"
-                                style={{ borderColor: '#FEE2E2', backgroundColor: '#FFF' }}
-                                icon="delete-sweep"
-                            >
-                                Cerrar todas las demás sesiones
-                            </Button>
-                        </View>
+                        sessions.length > 1 && (
+                            <View className="px-4 pb-6 pt-2">
+                                <TouchableOpacity
+                                    onPress={handleRevokeAllOthers}
+                                    className="py-3 px-4 bg-red-50 border border-red-200 rounded-xl flex-row items-center justify-center gap-2"
+                                >
+                                    <MaterialCommunityIcons name="delete-sweep-outline" size={20} color="#DC2626" />
+                                    <Text className="text-red-600 font-semibold">Cerrar todas las demás sesiones</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )
                     )}
-                    contentContainerStyle={{ paddingBottom: 20 }}
                 />
             </View>
         </GestureHandlerRootView>

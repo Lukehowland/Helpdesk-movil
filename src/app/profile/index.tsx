@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, Platform, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import Animated, { FadeIn, ZoomIn, FadeOut, ZoomOut } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 import { Avatar, List, Divider, Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,11 +10,12 @@ import { es } from 'date-fns/locale';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import * as ImagePicker from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 import { ProfileSkeleton } from '../../components/Skeleton';
 
 export default function ProfileScreen() {
-    const router = useRouter();
+    const { push, replace } = useDebounceNavigation();
     const { user, logout, isLoading, refreshToken, invalidateToken, updateAvatar, isUploadingAvatar } = useAuthStore();
     const [showImagePreview, setShowImagePreview] = React.useState(false);
     const insets = useSafeAreaInsets();
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         await logout();
-                        router.replace('/(auth)/login');
+                        replace('/(auth)/login');
                     }
                 },
             ]
@@ -162,28 +162,28 @@ export default function ProfileScreen() {
                         title="Editar Perfil"
                         left={(props) => <List.Icon {...props} icon="account-edit" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/profile/edit')}
+                        onPress={() => push('/profile/edit')}
                     />
                     <Divider />
                     <List.Item
                         title="Preferencias"
                         left={(props) => <List.Icon {...props} icon="cog" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/profile/preferences')}
+                        onPress={() => push('/profile/preferences')}
                     />
                     <Divider />
                     <List.Item
                         title="Sesiones Activas"
                         left={(props) => <List.Icon {...props} icon="devices" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/profile/sessions')}
+                        onPress={() => push('/profile/sessions')}
                     />
                     <Divider />
                     <List.Item
                         title="Cambiar Contraseña"
                         left={(props) => <List.Icon {...props} icon="lock-reset" color="#4b5563" />}
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => router.push('/profile/change-password')}
+                        onPress={() => push('/profile/change-password')}
                     />
                 </View>
 

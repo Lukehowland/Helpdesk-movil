@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, Text } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAnnouncementStore } from '../../stores/announcementStore';
 import { AnnouncementCard } from '../../components/announcements/AnnouncementCard';
 import { AnnouncementType } from '../../types/announcement';
@@ -8,6 +7,7 @@ import { AnnouncementCardSkeleton } from '../../components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterPill } from '@/components/ui/FilterPill';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 const FILTERS: { label: string; value: AnnouncementType | 'ALL' }[] = [
     { label: 'Todos', value: 'ALL' },
@@ -18,7 +18,7 @@ const FILTERS: { label: string; value: AnnouncementType | 'ALL' }[] = [
 ];
 
 export default function AnnouncementsScreen() {
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
     const { announcements, fetchAnnouncements, isLoading } = useAnnouncementStore();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -36,7 +36,7 @@ export default function AnnouncementsScreen() {
     };
 
     const handlePress = (id: string) => {
-        router.push(`/announcements/${id}`);
+        push(`/announcements/${id}`);
     };
 
     return (

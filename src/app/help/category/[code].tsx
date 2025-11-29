@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useTheme, Searchbar, ActivityIndicator, Text } from 'react-native-paper';
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
 import { useArticleStore } from '../../../stores/articleStore';
 import { ArticleCard } from '../../../components/help/ArticleCard';
 import { ArticleCategoryCode } from '../../../types/article';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 export default function ArticlesByCategoryScreen() {
     const { code } = useLocalSearchParams();
     const theme = useTheme();
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
     const { articles, fetchArticles, isLoading, categories } = useArticleStore();
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -30,7 +31,7 @@ export default function ArticlesByCategoryScreen() {
     };
 
     const handlePress = (id: string) => {
-        router.push(`/help/article/${id}`);
+        push(`/help/article/${id}`);
     };
 
     return (

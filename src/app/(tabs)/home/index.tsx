@@ -1,14 +1,14 @@
 import { View, Text, ScrollView, TouchableOpacity, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../stores/authStore';
 import { useTicketStore } from '../../../stores/ticketStore';
 import { useEffect, useRef, useState } from 'react';
 import { HomeSkeleton } from '../../../components/Skeleton';
 import { TicketCard } from '../../../components/tickets/TicketCard';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 export default function HomeScreen() {
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
     const { user, isLoading: authLoading } = useAuthStore();
     const { tickets, fetchTickets, isLoading: ticketsLoading } = useTicketStore();
     const [showHint, setShowHint] = useState(true);
@@ -156,7 +156,7 @@ export default function HomeScreen() {
                         <View key={index} className="w-[48%] mb-4 relative">
                             <TouchableOpacity
                                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 items-center w-full"
-                                onPress={() => router.push(action.route as any)}
+                                onPress={() => push(action.route as any)}
                             >
                                 <View className={`p-3 rounded-full mb-3 ${action.color}`}>
                                     <MaterialCommunityIcons
@@ -186,7 +186,7 @@ export default function HomeScreen() {
                 <View className="mt-4">
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-lg font-bold text-gray-900">Actividad Reciente</Text>
-                        <TouchableOpacity onPress={() => router.push('/(tabs)/tickets')}>
+                        <TouchableOpacity onPress={() => push('/(tabs)/tickets')}>
                             <Text className="text-blue-600 font-medium">Ver todo</Text>
                         </TouchableOpacity>
                     </View>

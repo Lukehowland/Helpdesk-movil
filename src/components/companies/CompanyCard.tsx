@@ -1,20 +1,20 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Avatar, Chip } from 'react-native-paper';
 import { CompanyExploreItem } from '@/types/company';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 interface CompanyCardProps {
     company: CompanyExploreItem;
 }
 
 export function CompanyCard({ company }: CompanyCardProps) {
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
 
     return (
         <TouchableOpacity
             className="bg-white p-4 rounded-xl mb-3 shadow-sm border border-gray-100"
-            onPress={() => router.push(`/(tabs)/companies/${company.id}`)}
+            onPress={() => push(`/(tabs)/companies/${company.id}`)}
             activeOpacity={0.7}
         >
             <View className="flex-row">

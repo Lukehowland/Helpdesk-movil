@@ -1,17 +1,17 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { Ticket } from '@/types/ticket';
-import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 interface TicketCardProps {
     ticket: Ticket;
 }
 
 export function TicketCard({ ticket }: TicketCardProps) {
-    const router = useRouter();
+    const { push } = useDebounceNavigation();
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -36,7 +36,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
     return (
         <TouchableOpacity
             className="bg-white p-4 rounded-xl mb-3 shadow-sm border border-gray-100"
-            onPress={() => router.push(`/(tabs)/tickets/${ticket.ticketCode}`)}
+            onPress={() => push(`/(tabs)/tickets/${ticket.ticketCode}`)}
         >
             <View className="flex-row justify-between items-start mb-2">
                 <View className="flex-row items-center">
