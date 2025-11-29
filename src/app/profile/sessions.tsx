@@ -124,7 +124,10 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            // Collapse expanded card first
+                            // Hide button FIRST before anything else
+                            setIsDeletingAllMode(true);
+
+                            // Collapse expanded card if needed
                             if (expandedSession) {
                                 setExpandedSession(null);
                                 await new Promise((resolve) => setTimeout(resolve, 300));
@@ -132,10 +135,6 @@ export default function SessionsScreen() {
 
                             const nonCurrentSessions = sessions.filter((s) => !s.isCurrent);
                             if (nonCurrentSessions.length === 0) return;
-
-                            // Hide button before starting animations
-                            setIsDeletingAllMode(true);
-                            await new Promise((resolve) => setTimeout(resolve, 100));
 
                             const reversedSessions = [...nonCurrentSessions].reverse();
 
