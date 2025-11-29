@@ -9,7 +9,7 @@ import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { parseUserAgent, formatLocation, getCountryFlag } from '../../utils/deviceParser';
-import Animated, { FadeOut, SlideOutRight, SlideOutLeft, runOnJS, Layout } from 'react-native-reanimated';
+import Animated, { FadeOut, SlideOutRight, SlideOutLeft, ZoomOut, runOnJS, Layout } from 'react-native-reanimated';
 
 export default function SessionsScreen() {
     const fetchSessions = useUserStore((state) => state.fetchSessions);
@@ -22,6 +22,8 @@ export default function SessionsScreen() {
     const [expandedSession, setExpandedSession] = useState<string | null>(null);
     // Map<sessionId, deletionOrder> - tracks the order of deletion from bottom to top
     const [deletingSessionIds, setDeletingSessionIds] = useState<Map<string, number>>(new Map());
+    // Track if we're in "delete all" mode for button animation
+    const [isDeletingAllMode, setIsDeletingAllMode] = useState(false);
 
     const loadSessions = async () => {
         try {
@@ -125,6 +127,12 @@ export default function SessionsScreen() {
                             if (nonCurrentSessions.length === 0) {
                                 return;
                             }
+
+                            // Trigger button animation (zoom out + fade)
+                            setIsDeletingAllMode(true);
+
+                            // Wait for button animation to complete (250ms)
+                            await new Promise((resolve) => setTimeout(resolve, 250));
 
                             // Reverse to eliminate from bottom to top
                             const reversedSessions = [...nonCurrentSessions].reverse();
@@ -308,9 +316,15 @@ export default function SessionsScreen() {
                             <Text className="text-gray-500 mt-4 font-medium">No hay sesiones activas</Text>
                         </View>
                     )}
-                    ListFooterComponent={() => (
-                        sessions.length > 1 && (
-                            <View className="px-4 pb-6 pt-2">
+                    ListFooterComponent={() => {
+                        if (sessions.length <= 1 || isDeletingAllMode) {
+                            return null;
+                        }
+                        return (
+                            <Animated.View
+                                exiting={new ZoomOut()}
+                                className="px-4 pb-6 pt-2"
+                            >
                                 <TouchableOpacity
                                     onPress={handleRevokeAllOthers}
                                     className="py-3 px-4 bg-red-50 border border-red-200 rounded-xl flex-row items-center justify-center gap-2"
@@ -318,9 +332,9 @@ export default function SessionsScreen() {
                                     <MaterialCommunityIcons name="delete-sweep-outline" size={20} color="#DC2626" />
                                     <Text className="text-red-600 font-semibold">Cerrar todas las demás sesiones</Text>
                                 </TouchableOpacity>
-                            </View>
-                        )
-                    )}
+                            </Animated.View>
+                        );
+                    }}
                 />
             </View>
         </GestureHandlerRootView>
