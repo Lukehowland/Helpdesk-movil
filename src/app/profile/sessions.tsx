@@ -75,7 +75,6 @@ export default function SessionsScreen() {
                             // First, collapse the expanded card if it's the one being deleted
                             if (expandedSession === id) {
                                 setExpandedSession(null);
-                                // Wait for collapse animation to complete
                                 await new Promise((resolve) => setTimeout(resolve, 300));
                             }
 
@@ -87,10 +86,18 @@ export default function SessionsScreen() {
                             // Mark as deleting (triggers slide out animation)
                             setDeletingSessionIds((prev) => new Map(prev).set(id, deletionOrder));
 
-                            // Wait for slide out animation (150ms) + layout spring animation (600ms)
-                            await new Promise((resolve) => setTimeout(resolve, 750));
+                            // Launch API call in background without waiting
+                            revokeSession(id).catch(() => {
+                                setDeletingSessionIds((prev) => {
+                                    const newMap = new Map(prev);
+                                    newMap.delete(id);
+                                    return newMap;
+                                });
+                                Alert.alert('Error', 'No se pudo cerrar la sesión');
+                            });
 
-                            await revokeSession(id);
+                            // Wait for slide out animation (100ms)
+                            await new Promise((resolve) => setTimeout(resolve, 100));
 
                             // Remove from state - other cards will animate up with Layout.springify()
                             setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -99,6 +106,9 @@ export default function SessionsScreen() {
                                 newMap.delete(id);
                                 return newMap;
                             });
+
+                            // Wait for layout spring animation to complete
+                            await new Promise((resolve) => setTimeout(resolve, 150));
                         } catch (error) {
                             setDeletingSessionIds((prev) => {
                                 const newMap = new Map(prev);
@@ -147,11 +157,17 @@ export default function SessionsScreen() {
                                     // Mark as deleting
                                     setDeletingSessionIds((prev) => new Map(prev).set(session.id, i));
 
-                                    // Wait for slide out animation
-                                    await new Promise((resolve) => setTimeout(resolve, 150));
+                                    // Launch API call in background without waiting
+                                    revokeSession(session.id).catch(() => {
+                                        setDeletingSessionIds((prev) => {
+                                            const newMap = new Map(prev);
+                                            newMap.delete(session.id);
+                                            return newMap;
+                                        });
+                                    });
 
-                                    // Revoke on backend
-                                    await revokeSession(session.id);
+                                    // Wait for slide out animation
+                                    await new Promise((resolve) => setTimeout(resolve, 100));
 
                                     // Remove from state - triggers layout spring
                                     setSessions((prev) => prev.filter((s) => s.id !== session.id));
@@ -162,7 +178,7 @@ export default function SessionsScreen() {
                                     });
 
                                     // Wait for layout animation to complete before next deletion
-                                    await new Promise((resolve) => setTimeout(resolve, 750));
+                                    await new Promise((resolve) => setTimeout(resolve, 150));
                                 } catch (error) {
                                     continue;
                                 }
