@@ -1,29 +1,27 @@
-import { View, FlatList, Text, Alert, RefreshControl, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, FlatList, Text, Alert, RefreshControl, TouchableOpacity } from 'react-native';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { Button, Chip, Divider } from 'react-native-paper';
 import { CardSkeleton } from '../../components/Skeleton';
 import { useUserStore, Session } from '../../stores/userStore';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { parseUserAgent, formatLocation, getCountryFlag } from '../../utils/deviceParser';
-import Animated, { FadeOut, SlideOutRight, SlideOutLeft, ZoomOut, ZoomIn, runOnJS, Layout } from 'react-native-reanimated';
+import Animated, {
+    SlideOutRight,
+    SlideOutLeft,
+} from 'react-native-reanimated';
 
 export default function SessionsScreen() {
     const fetchSessions = useUserStore((state) => state.fetchSessions);
     const revokeSession = useUserStore((state) => state.revokeSession);
-    const revokeAllOtherSessions = useUserStore((state) => state.revokeAllOtherSessions);
 
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [expandedSession, setExpandedSession] = useState<string | null>(null);
-    // Map<sessionId, deletionOrder> - tracks the order of deletion from bottom to top
     const [deletingSessionIds, setDeletingSessionIds] = useState<Map<string, number>>(new Map());
-    // Track if we're in "delete all" mode for button animation
-    const [isDeletingAllMode, setIsDeletingAllMode] = useState(false);
 
     const loadSessions = async () => {
         try {
@@ -46,18 +44,20 @@ export default function SessionsScreen() {
         loadSessions();
     };
 
-    if (loading && !refreshing) {
-        return (
-            <View className="flex-1 bg-gray-50 p-4">
-                <ScreenHeader title="Sesiones Activas" showBack={true} />
-                <View className="mt-4">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                        <CardSkeleton key={i} />
-                    ))}
-                </View>
-            </View>
-        );
-    }
+    // Sort sessions: current session first, then others
+    const sortedSessions = [...sessions].sort((a, b) => {
+        if (a.isCurrent) return -1;
+        if (b.isCurrent) return 1;
+        return 0;
+    });
+
+    const toggleExpand = (sessionId: string) => {
+        if (expandedSession === sessionId) {
+            setExpandedSession(null);
+        } else {
+            setExpandedSession(sessionId);
+        }
+    };
 
     const handleRevoke = (id: string) => {
         Alert.alert(
@@ -73,7 +73,6 @@ export default function SessionsScreen() {
                             // First, collapse the expanded card if it's the one being deleted
                             if (expandedSession === id) {
                                 setExpandedSession(null);
-                                // Wait for collapse animation (75ms - 25% faster)
                                 await new Promise((resolve) => setTimeout(resolve, 75));
                             }
 
@@ -82,19 +81,15 @@ export default function SessionsScreen() {
                             const reversedNonCurrent = [...nonCurrentSessions].reverse();
                             const deletionOrder = reversedNonCurrent.findIndex((s) => s.id === id);
 
-                            // Mark as deleting to start animation with deletion order
+                            // Mark as deleting (triggers slide out)
                             setDeletingSessionIds((prev) => new Map(prev).set(id, deletionOrder));
 
-                            // Wait for animation to complete (250ms - slide animation duration)
-                            await new Promise((resolve) => setTimeout(resolve, 250));
+                            // Wait for slide out animation
+                            await new Promise((resolve) => setTimeout(resolve, 150));
 
-                            // Make API call
-                            await revokeSession(id).catch((error) => {
-                                console.error('Error revoking session:', error);
-                                throw error;
-                            });
+                            await revokeSession(id);
 
-                            // Remove from state after animation and API complete
+                            // Remove from state
                             setSessions((prev) => prev.filter((s) => s.id !== id));
                             setDeletingSessionIds((prev) => {
                                 const newMap = new Map(prev);
@@ -102,8 +97,6 @@ export default function SessionsScreen() {
                                 return newMap;
                             });
                         } catch (error) {
-                            console.error('Error during session revocation:', error);
-                            // Cancel animation if API fails
                             setDeletingSessionIds((prev) => {
                                 const newMap = new Map(prev);
                                 newMap.delete(id);
@@ -128,45 +121,24 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            // First, collapse any expanded card
                             if (expandedSession) {
                                 setExpandedSession(null);
                                 await new Promise((resolve) => setTimeout(resolve, 75));
                             }
 
-                            // Get non-current sessions and reverse to start from bottom
                             const nonCurrentSessions = sessions.filter((s) => !s.isCurrent);
+                            if (nonCurrentSessions.length === 0) return;
 
-                            if (nonCurrentSessions.length === 0) {
-                                return;
-                            }
-
-                            // Trigger button animation (zoom in + fade flash) - fast
-                            setIsDeletingAllMode(true);
-
-                            // Wait for button animation to complete (75ms - flash effect, 25% faster)
-                            await new Promise((resolve) => setTimeout(resolve, 75));
-
-                            // Reverse to eliminate from bottom to top
                             const reversedSessions = [...nonCurrentSessions].reverse();
 
-                            // Eliminate each session sequentially with animation from bottom to top
                             for (let i = 0; i < reversedSessions.length; i++) {
                                 const session = reversedSessions[i];
                                 try {
-                                    // Mark as deleting with deletion order (for alternating direction)
                                     setDeletingSessionIds((prev) => new Map(prev).set(session.id, i));
+                                    await new Promise((resolve) => setTimeout(resolve, 150));
 
-                                    // Wait for animation to complete (250ms - slide animation duration)
-                                    await new Promise((resolve) => setTimeout(resolve, 250));
+                                    await revokeSession(session.id);
 
-                                    // Make API call
-                                    await revokeSession(session.id).catch((error) => {
-                                        console.error(`Error revoking session ${session.id}:`, error);
-                                        throw error;
-                                    });
-
-                                    // Remove from state
                                     setSessions((prev) => prev.filter((s) => s.id !== session.id));
                                     setDeletingSessionIds((prev) => {
                                         const newMap = new Map(prev);
@@ -174,25 +146,11 @@ export default function SessionsScreen() {
                                         return newMap;
                                     });
                                 } catch (error) {
-                                    console.error(`Failed to revoke session ${session.id}:`, error);
-                                    // Cancel animation if API fails
-                                    setDeletingSessionIds((prev) => {
-                                        const newMap = new Map(prev);
-                                        newMap.delete(session.id);
-                                        return newMap;
-                                    });
-                                    Alert.alert('Error', `No se pudo cerrar sesión ${session.id}`);
-                                    // Continue with next session instead of stopping
                                     continue;
                                 }
                             }
-
-                            // Reset delete all mode so button reappears
-                            setIsDeletingAllMode(false);
                         } catch (error) {
-                            Alert.alert('Error', 'No se pudieron cerrar todas las sesiones');
-                            // Reset delete all mode on error too
-                            setIsDeletingAllMode(false);
+                            Alert.alert('Error', 'No se pudieron cerrar las sesiones');
                         }
                     },
                 },
@@ -200,44 +158,26 @@ export default function SessionsScreen() {
         );
     };
 
-    const toggleExpand = (sessionId: string) => {
-        setExpandedSession(expandedSession === sessionId ? null : sessionId);
-    };
-
-    // Sort sessions: current session first, then others
-    const sortedSessions = [...sessions].sort((a, b) => {
-        if (a.isCurrent) return -1;
-        if (b.isCurrent) return 1;
-        return 0;
-    });
-
-    const renderItem = ({ item, index }: { item: Session; index: number }) => {
+    const renderItem = ({ item }: { item: Session }) => {
         const isExpanded = expandedSession === item.id;
         const deletionOrder = deletingSessionIds.get(item.id);
-        const isDeleting = deletionOrder !== undefined;
         const deviceInfo = parseUserAgent(item.userAgent, item.deviceName);
         const locationStr = formatLocation(item.location);
         const countryFlag = getCountryFlag(item.location?.country_code || null);
-        // Format time with consistent "hace" prefix to avoid "en menos de un minuto" variation
-        const distance = formatDistanceToNow(new Date(item.lastUsedAt), { addSuffix: false, locale: es });
-        const timeAgo = `hace ${distance}`;
+        const timeAgo = formatDistanceToNow(new Date(item.lastUsedAt), { addSuffix: true, locale: es });
         const lastUsedDate = format(new Date(item.lastUsedAt), "d 'de' MMMM 'a las' HH:mm", { locale: es });
 
-        // Alternate animation direction based on deletion order (from bottom to top)
-        // even order = right, odd order = left
-        // Duration set to 250ms for faster slide animations
         const getExitingAnimation = () => {
             if (deletionOrder === undefined) return undefined;
             if (deletionOrder % 2 === 0) {
-                return (new SlideOutRight() as any).duration(250);
+                return (new SlideOutRight() as any).duration(150);
             } else {
-                return (new SlideOutLeft() as any).duration(250);
+                return (new SlideOutLeft() as any).duration(150);
             }
         };
 
         return (
             <Animated.View
-                layout={Layout.springify()}
                 exiting={getExitingAnimation()}
                 className="px-4 py-2"
             >
@@ -328,6 +268,19 @@ export default function SessionsScreen() {
         );
     };
 
+    if (loading && !refreshing) {
+        return (
+            <View className="flex-1 bg-gray-50 p-4">
+                <ScreenHeader title="Sesiones Activas" showBack={true} />
+                <View className="mt-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <CardSkeleton key={i} />
+                    ))}
+                </View>
+            </View>
+        );
+    }
+
     return (
         <GestureHandlerRootView className="flex-1">
             <View className="flex-1 bg-gray-50">
@@ -344,18 +297,9 @@ export default function SessionsScreen() {
                             <Text className="text-gray-500 mt-4 font-medium">No hay sesiones activas</Text>
                         </View>
                     )}
-                    ListFooterComponent={() => {
-                        // Only show button if there are multiple sessions
-                        if (sessions.length <= 1) {
-                            return null;
-                        }
-
-                        return (
-                            <Animated.View
-                                exiting={isDeletingAllMode ? new ZoomIn() : undefined}
-                                className="px-4 pb-6 pt-2"
-                                style={{ opacity: isDeletingAllMode ? 0 : 1, pointerEvents: isDeletingAllMode ? 'none' : 'auto' }}
-                            >
+                    ListFooterComponent={() => (
+                        sessions.length > 1 && (
+                            <View className="px-4 pb-6 pt-2">
                                 <TouchableOpacity
                                     onPress={handleRevokeAllOthers}
                                     className="py-3 px-4 bg-red-50 border border-red-200 rounded-xl flex-row items-center justify-center gap-2"
@@ -363,9 +307,9 @@ export default function SessionsScreen() {
                                     <MaterialCommunityIcons name="delete-sweep-outline" size={20} color="#DC2626" />
                                     <Text className="text-red-600 font-semibold">Cerrar todas las demás sesiones</Text>
                                 </TouchableOpacity>
-                            </Animated.View>
-                        );
-                    }}
+                            </View>
+                        )
+                    )}
                 />
             </View>
         </GestureHandlerRootView>
