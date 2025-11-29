@@ -4,6 +4,7 @@ import { RegisterData, AuthResponse } from '../types/auth';
 import { client } from '../services/api/client';
 import { tokenStorage } from '../services/storage/tokenStorage';
 import { router } from 'expo-router';
+import * as Device from 'expo-device';
 
 interface AuthState {
     accessToken: string | null;
@@ -32,8 +33,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     login: async (email, password) => {
         set({ isLoading: true });
         try {
-            // Capture device name (mock for now, use expo-device in real app)
-            const deviceName = "Mobile Device";
+            // Capture device name - OS info is handled by backend user agent parsing
+            const deviceName = Device.deviceName || Device.modelName || 'Unknown Device';
 
             const response = await client.post<AuthResponse>('/api/auth/login', {
                 email,
