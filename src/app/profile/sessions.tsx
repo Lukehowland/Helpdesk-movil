@@ -3,12 +3,13 @@ import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { Button, Chip, Divider } from 'react-native-paper';
 import { CardSkeleton } from '../../components/Skeleton';
 import { useUserStore, Session } from '../../stores/userStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { parseUserAgent, formatLocation, getCountryFlag } from '../../utils/deviceParser';
+import Animated, { FadeOut, SlideOutRight, SlideOutLeft, runOnJS, Layout } from 'react-native-reanimated';
 
 export default function SessionsScreen() {
     const fetchSessions = useUserStore((state) => state.fetchSessions);
@@ -19,6 +20,7 @@ export default function SessionsScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [expandedSession, setExpandedSession] = useState<string | null>(null);
+    const [deletingSessionIds, setDeletingSessionIds] = useState<Set<string>>(new Set());
 
     const loadSessions = async () => {
         try {
@@ -65,10 +67,37 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await revokeSession(id);
-                            setSessions((prev) => prev.filter((s) => s.id !== id));
+                            // Mark as deleting to start animation
+                            setDeletingSessionIds((prev) => new Set(prev).add(id));
+
+                            // Wait a bit for animation to complete, then make API call
+                            setTimeout(async () => {
+                                try {
+                                    await revokeSession(id);
+                                    setSessions((prev) => prev.filter((s) => s.id !== id));
+                                    setDeletingSessionIds((prev) => {
+                                        const newSet = new Set(prev);
+                                        newSet.delete(id);
+                                        return newSet;
+                                    });
+                                } catch (error) {
+                                    console.error('Error revoking session:', error);
+                                    // Remove from deleting set if there's an error
+                                    setDeletingSessionIds((prev) => {
+                                        const newSet = new Set(prev);
+                                        newSet.delete(id);
+                                        return newSet;
+                                    });
+                                    Alert.alert('Error', 'No se pudo cerrar la sesión');
+                                }
+                            }, 300);
                         } catch (error) {
                             Alert.alert('Error', 'No se pudo cerrar la sesión');
+                            setDeletingSessionIds((prev) => {
+                                const newSet = new Set(prev);
+                                newSet.delete(id);
+                                return newSet;
+                            });
                         }
                     },
                 },
@@ -87,8 +116,25 @@ export default function SessionsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await revokeAllOtherSessions();
-                            loadSessions();
+                            // Mark all non-current sessions for deletion
+                            const nonCurrentIds = new Set(
+                                sessions.filter((s) => !s.isCurrent).map((s) => s.id)
+                            );
+                            setDeletingSessionIds(nonCurrentIds);
+
+                            // Wait for animations to complete before making API calls
+                            setTimeout(async () => {
+                                try {
+                                    await revokeAllOtherSessions();
+                                    setSessions((prev) => prev.filter((s) => s.isCurrent));
+                                    setDeletingSessionIds(new Set());
+                                } catch (error) {
+                                    console.error('Error revoking sessions:', error);
+                                    // Reload to show correct state
+                                    loadSessions();
+                                    Alert.alert('Error', 'No se pudieron cerrar todas las sesiones');
+                                }
+                            }, 300);
                         } catch (error) {
                             Alert.alert('Error', 'No se pudieron cerrar las sesiones');
                         }
@@ -102,128 +148,111 @@ export default function SessionsScreen() {
         setExpandedSession(expandedSession === sessionId ? null : sessionId);
     };
 
-    const renderItem = ({ item }: { item: Session }) => {
+    const renderItem = ({ item, index }: { item: Session; index: number }) => {
         const isExpanded = expandedSession === item.id;
+        const isDeleting = deletingSessionIds.has(item.id);
         const deviceInfo = parseUserAgent(item.userAgent, item.deviceName);
         const locationStr = formatLocation(item.location);
         const countryFlag = getCountryFlag(item.location?.country_code || null);
         const timeAgo = formatDistanceToNow(new Date(item.lastUsedAt), { addSuffix: true, locale: es });
         const lastUsedDate = format(new Date(item.lastUsedAt), "d 'de' MMMM 'a las' HH:mm", { locale: es });
 
+        // Alternate animation direction: even index = right, odd index = left
+        const getExitingAnimation = () => {
+            if (!isDeleting) return undefined;
+            return index % 2 === 0 ? new SlideOutRight() : new SlideOutLeft();
+        };
+
         return (
-            <View className="px-4 py-3">
-                <View className={`rounded-2xl border ${item.isCurrent ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
-                    {/* Header Card */}
+            <Animated.View
+                layout={Layout.springify()}
+                exiting={getExitingAnimation()}
+                className="px-4 py-2"
+            >
+                <View className={`rounded-xl overflow-hidden border ${item.isCurrent ? 'border-blue-200 bg-blue-50/50' : 'border-gray-100 bg-white'}`}>
                     <TouchableOpacity
                         onPress={() => toggleExpand(item.id)}
                         activeOpacity={0.7}
-                        className="px-4 py-4"
+                        className="p-4"
                     >
-                        <View className="flex-row items-center gap-3">
-                            {/* Device Icon */}
-                            <View className={`w-12 h-12 rounded-full items-center justify-center ${
-                                item.isCurrent ? 'bg-blue-200' : 'bg-gray-100'
-                            }`}>
-                                <MaterialCommunityIcons
-                                    name={deviceInfo.icon as any}
-                                    size={28}
-                                    color={item.isCurrent ? '#1e40af' : '#6B7280'}
-                                />
+                        <View className="flex-row items-center gap-4">
+                            {/* Icon Column */}
+                            <View className="items-center">
+                                <View className={`w-12 h-12 rounded-full items-center justify-center ${item.isCurrent ? 'bg-blue-100' : 'bg-gray-100'
+                                    }`}>
+                                    <MaterialCommunityIcons
+                                        name={deviceInfo.icon as any}
+                                        size={26}
+                                        color={item.isCurrent ? '#1e40af' : '#4B5563'}
+                                    />
+                                </View>
                             </View>
 
-                            {/* Device Info */}
-                            <View className="flex-1">
-                                <View className="flex-row items-center gap-2">
-                                    <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
+                            {/* Main Content */}
+                            <View className="flex-1 gap-1">
+                                <View className="flex-row items-center justify-between">
+                                    <Text className="text-base font-semibold text-gray-900 flex-1 mr-2" numberOfLines={1}>
                                         {deviceInfo.displayName}
                                     </Text>
                                     {item.isCurrent && (
-                                        <View className="bg-green-500 px-2 py-1 rounded-full">
-                                            <Text className="text-xs font-semibold text-white">Actual</Text>
+                                        <View className="bg-blue-100 px-2 py-0.5 rounded text-xs">
+                                            <Text className="text-blue-700 text-[10px] font-bold uppercase tracking-wider">Actual</Text>
                                         </View>
                                     )}
                                 </View>
-                                <Text className="text-xs text-gray-500 mt-1">
+
+                                <Text className="text-sm text-gray-600" numberOfLines={1}>
                                     {deviceInfo.os} • {deviceInfo.browser}
                                 </Text>
-                                <Text className="text-xs text-gray-400 mt-0.5">{timeAgo}</Text>
+
+                                <View className="flex-row items-center gap-1 mt-0.5">
+                                    {countryFlag ? <Text className="text-xs">{countryFlag}</Text> : null}
+                                    <Text className="text-xs text-gray-500 flex-1" numberOfLines={1}>
+                                        {locationStr} • {timeAgo}
+                                    </Text>
+                                </View>
                             </View>
 
                             {/* Chevron */}
-                            <MaterialCommunityIcons
-                                name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                                size={24}
-                                color="#9CA3AF"
-                            />
+                            <View className="justify-center pl-2">
+                                <MaterialCommunityIcons
+                                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                                    size={20}
+                                    color="#9CA3AF"
+                                />
+                            </View>
                         </View>
                     </TouchableOpacity>
 
                     {/* Expanded Details */}
                     {isExpanded && (
-                        <>
-                            <View className="border-t border-gray-100" />
-                            <View className="px-4 py-4 gap-3">
-                                {/* Location */}
-                                {item.location && (
-                                    <View>
-                                        <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
-                                            📍 Ubicación
-                                        </Text>
-                                        <View className="flex-row items-center gap-2">
-                                            <Text className="text-sm text-2xl">{countryFlag}</Text>
-                                            <View className="flex-1">
-                                                <Text className="text-sm font-medium text-gray-900">{locationStr}</Text>
-                                                {item.location.timezone && (
-                                                    <Text className="text-xs text-gray-500">{item.location.timezone}</Text>
-                                                )}
-                                            </View>
-                                        </View>
-                                    </View>
-                                )}
+                        <View className="px-4 pb-4 pt-0">
+                            <View className="h-px bg-gray-100 my-3" />
 
-                                {/* IP Address */}
-                                <View>
-                                    <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
-                                        🌐 Dirección IP
-                                    </Text>
-                                    <Text className="text-sm font-mono text-gray-700 bg-gray-50 p-2 rounded-lg">
-                                        {item.ipAddress || 'No disponible'}
-                                    </Text>
+                            <View className="gap-3">
+                                <View className="flex-row justify-between items-center">
+                                    <Text className="text-xs text-gray-500">Dirección IP</Text>
+                                    <Text className="text-xs font-mono text-gray-700">{item.ipAddress || 'N/A'}</Text>
                                 </View>
 
-                                {/* Last Used */}
-                                <View>
-                                    <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
-                                        ⏰ Última actividad
-                                    </Text>
-                                    <Text className="text-sm text-gray-700">{lastUsedDate}</Text>
+                                <View className="flex-row justify-between items-center">
+                                    <Text className="text-xs text-gray-500">Última actividad</Text>
+                                    <Text className="text-xs text-gray-700">{lastUsedDate}</Text>
                                 </View>
 
-                                {/* Expiration */}
-                                <View>
-                                    <Text className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1.5">
-                                        🔐 Expira
-                                    </Text>
-                                    <Text className="text-sm text-gray-700">
-                                        {format(new Date(item.expiresAt), "d 'de' MMMM 'a las' HH:mm", { locale: es })}
-                                    </Text>
-                                </View>
-
-                                {/* Action Button */}
                                 {!item.isCurrent && (
                                     <TouchableOpacity
                                         onPress={() => handleRevoke(item.id)}
-                                        className="mt-2 py-2.5 px-3 bg-red-50 rounded-lg flex-row items-center justify-center gap-2 border border-red-200"
+                                        className="mt-2 py-2 bg-red-50 rounded-lg border border-red-100 items-center justify-center"
                                     >
-                                        <MaterialCommunityIcons name="logout" size={16} color="#DC2626" />
-                                        <Text className="text-sm font-semibold text-red-600">Cerrar esta sesión</Text>
+                                        <Text className="text-red-600 text-sm font-medium">Cerrar sesión</Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
-                        </>
+                        </View>
                     )}
                 </View>
-            </View>
+            </Animated.View>
         );
     };
 
