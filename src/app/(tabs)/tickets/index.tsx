@@ -4,17 +4,19 @@ import { useTicketStore } from '@/stores/ticketStore';
 import { useEffect, useState, useCallback } from 'react';
 import { TicketCard } from '@/components/tickets/TicketCard';
 import { debounce } from 'lodash';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { TicketCardSkeleton } from '@/components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 
 export default function MyTicketsScreen() {
     const { push } = useDebounceNavigation();
     const { tickets, fetchTickets, isLoading } = useTicketStore();
     const user = useAuthStore((state) => state.user);
+    const tabBarPadding = useTabBarPadding();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -66,7 +68,7 @@ export default function MyTicketsScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50" edges={['left', 'right', 'top']}>
+        <ScreenContainer>
             {/* Header Stats */}
             <View className="bg-white px-4 pt-4 pb-2 border-b border-gray-200">
                 <View className="flex-row justify-between mb-4">
@@ -116,7 +118,7 @@ export default function MyTicketsScreen() {
                     data={tickets}
                     renderItem={({ item }) => <TicketCard ticket={item} />}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+                    contentContainerStyle={{ padding: 16, ...tabBarPadding }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                     ListEmptyComponent={() => (
                         <View className="items-center justify-center mt-20 px-6">
@@ -148,6 +150,6 @@ export default function MyTicketsScreen() {
                 color="white"
                 onPress={() => push('/(tabs)/tickets/create')}
             />
-        </SafeAreaView>
+        </ScreenContainer>
     );
 }

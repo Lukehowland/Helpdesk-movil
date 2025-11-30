@@ -8,6 +8,7 @@ import { ControlledInput } from '../../components/ui/ControlledInput';
 import { passwordChangeSchema, PasswordChangeFormData } from '../../schemas/profile';
 import { client } from '../../services/api/client';
 import { useState } from 'react';
+import { useDebounceCallback } from '../../hooks/useDebounceCallback';
 
 export default function ChangePasswordScreen() {
     const router = useRouter();
@@ -23,7 +24,7 @@ export default function ChangePasswordScreen() {
         },
     });
 
-    const onSubmit = async (data: PasswordChangeFormData) => {
+    const onSubmit = useDebounceCallback(async (data: PasswordChangeFormData) => {
         setIsSubmitting(true);
         try {
             await client.post('/api/auth/change-password', {
@@ -39,7 +40,7 @@ export default function ChangePasswordScreen() {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, 1000); // 1000ms delay to prevent multiple password change requests
 
     return (
         <View className="flex-1 bg-white">

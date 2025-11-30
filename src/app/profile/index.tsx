@@ -11,6 +11,7 @@ import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import * as ImagePicker from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 
 import { ProfileSkeleton } from '../../components/Skeleton';
 
@@ -21,7 +22,7 @@ export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const { height: screenHeight } = Dimensions.get('screen');
 
-    const handleLogout = () => {
+    const handleLogout = useDebounceCallback(() => {
         Alert.alert(
             'Cerrar Sesión',
             '¿Estás seguro que deseas cerrar sesión?',
@@ -37,25 +38,25 @@ export default function ProfileScreen() {
                 },
             ]
         );
-    };
+    }, 500); // 500ms delay to prevent multiple logout alerts
 
-    const handleRefreshToken = async () => {
+    const handleRefreshToken = useDebounceCallback(async () => {
         const success = await refreshToken();
         Alert.alert(
             'Refresh Token',
             success ? 'Token refrescado exitosamente' : 'Error al refrescar el token'
         );
-    };
+    }, 500); // 500ms delay for testing actions
 
-    const handleInvalidateToken = async () => {
+    const handleInvalidateToken = useDebounceCallback(async () => {
         await invalidateToken();
         Alert.alert(
             'Token Invalidado',
             'El token ha sido invalidado. Intenta acceder a cualquier recurso para testear el auto-refresh.'
         );
-    };
+    }, 500); // 500ms delay for testing actions
 
-    const handlePickImage = async () => {
+    const handlePickImage = useDebounceCallback(async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -71,7 +72,7 @@ export default function ProfileScreen() {
         } catch (error) {
             Alert.alert('Error', 'No se pudo actualizar la foto de perfil');
         }
-    };
+    }, 500); // 500ms delay to prevent multiple image pickers
 
     if (isLoading) {
         return <ProfileSkeleton />;

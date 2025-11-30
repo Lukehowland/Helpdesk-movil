@@ -1,21 +1,23 @@
-import { View, FlatList, Text, RefreshControl, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
+import { View, FlatList, Text, RefreshControl, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { useCompanyStore } from '@/stores/companyStore';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CompanyCard } from '@/components/companies/CompanyCard';
 import { debounce } from 'lodash';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CompanyCardSkeleton } from '@/components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterButton } from '@/components/ui/FilterButton';
 import { FilterPill } from '@/components/ui/FilterPill';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 
 export default function ExploreCompaniesScreen() {
     const { companies, industries, fetchCompanies, fetchIndustries, companiesLoading, setFilter, setMultipleFilters, filters, clearFilters } = useCompanyStore();
     const [refreshing, setRefreshing] = useState(false);
     const [showIndustryModal, setShowIndustryModal] = useState(false);
     const [localSearch, setLocalSearch] = useState(filters.search || '');
+    const tabBarPadding = useTabBarPadding();
 
     // Initial load
     useEffect(() => {
@@ -68,7 +70,7 @@ export default function ExploreCompaniesScreen() {
 
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50" edges={['left', 'right', 'bottom']}>
+        <ScreenContainer>
             {/* Header - SEPARATED from FlatList to prevent remounting */}
             <View className="px-4 pt-4 pb-2">
                 {/* Title & Subtitle */}
@@ -141,7 +143,7 @@ export default function ExploreCompaniesScreen() {
                 data={companies}
                 renderItem={({ item }) => <CompanyCard company={item} />}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80, paddingTop: 0 }}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 0, ...tabBarPadding }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
                 ListEmptyComponent={() => (
@@ -208,6 +210,6 @@ export default function ExploreCompaniesScreen() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </ScreenContainer>
     );
 }

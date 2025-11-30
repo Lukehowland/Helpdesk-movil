@@ -10,6 +10,7 @@ import { ControlledInput } from '../../components/ui/ControlledInput';
 import { profileSchema, ProfileFormData } from '../../schemas/profile';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
+import { useDebounceCallback } from '../../hooks/useDebounceCallback';
 
 export default function EditProfileScreen() {
     const router = useRouter();
@@ -27,7 +28,7 @@ export default function EditProfileScreen() {
         },
     });
 
-    const pickImage = async () => {
+    const pickImage = useDebounceCallback(async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
@@ -40,9 +41,9 @@ export default function EditProfileScreen() {
             setAvatar(result.assets[0].uri);
             // Here you would typically upload the image
         }
-    };
+    }, 500); // 500ms delay to prevent multiple image pickers
 
-    const onSubmit = async (data: ProfileFormData) => {
+    const onSubmit = useDebounceCallback(async (data: ProfileFormData) => {
         setIsSubmitting(true);
         try {
             await updateProfile({
@@ -56,7 +57,7 @@ export default function EditProfileScreen() {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, 1000); // 1000ms delay to prevent multiple profile updates
 
     if (!user) return null;
 

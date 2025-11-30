@@ -7,12 +7,14 @@ import { ArticleCard } from '../../components/help/ArticleCard';
 import { ArticleCategory } from '../../types/article';
 import { CategoryGridSkeleton, ListItemSkeleton } from '../../components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 
 export default function HelpScreen() {
     const theme = useTheme();
     const { push } = useDebounceNavigation();
+    const tabBarPadding = useTabBarPadding();
     const {
         categories,
         popularArticles,
@@ -38,10 +40,10 @@ export default function HelpScreen() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['left', 'right', 'bottom']}>
+        <ScreenContainer backgroundColor={theme.colors.background}>
             <ScrollView
                 style={styles.container}
-                contentContainerStyle={styles.content}
+                contentContainerStyle={[styles.content, tabBarPadding]}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.header}>
@@ -111,7 +113,7 @@ export default function HelpScreen() {
                     </>
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </ScreenContainer>
     );
 }
 
@@ -120,7 +122,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        paddingBottom: 80,
+        paddingBottom: 0, // Will be handled by tabBarPadding in ScrollView
     },
     header: {
         padding: 16,

@@ -8,6 +8,7 @@ import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { parseUserAgent, formatLocation, getCountryFlag } from '../../utils/deviceParser';
+import { useDebounceCallback } from '../../hooks/useDebounceCallback';
 import Animated, {
     SlideOutRight,
     SlideOutLeft,
@@ -53,15 +54,15 @@ export default function SessionsScreen() {
         return 0;
     });
 
-    const toggleExpand = (sessionId: string) => {
+    const toggleExpand = useDebounceCallback((sessionId: string) => {
         if (expandedSession === sessionId) {
             setExpandedSession(null);
         } else {
             setExpandedSession(sessionId);
         }
-    };
+    }, 300); // 300ms delay for expand/collapse
 
-    const handleRevoke = (id: string) => {
+    const handleRevoke = useDebounceCallback((id: string) => {
         Alert.alert(
             'Cerrar Sesión',
             '¿Estás seguro que deseas cerrar esta sesión?',
@@ -114,9 +115,9 @@ export default function SessionsScreen() {
                 },
             ]
         );
-    };
+    }, 500); // 500ms delay to prevent double-click on revoke button
 
-    const handleRevokeAllOthers = () => {
+    const handleRevokeAllOthers = useDebounceCallback(() => {
         Alert.alert(
             'Cerrar todas las demás sesiones',
             'Se cerrarán todas las sesiones excepto la actual. ¿Continuar?',
@@ -184,7 +185,7 @@ export default function SessionsScreen() {
                 },
             ]
         );
-    };
+    }, 500); // 500ms delay to prevent double-click on revoke all button
 
     const renderItem = ({ item }: { item: Session }) => {
         const isExpanded = expandedSession === item.id;

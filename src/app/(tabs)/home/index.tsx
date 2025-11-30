@@ -6,12 +6,15 @@ import { useEffect, useRef, useState } from 'react';
 import { HomeSkeleton } from '../../../components/Skeleton';
 import { TicketCard } from '../../../components/tickets/TicketCard';
 import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
+import { ScreenContainer } from '@/components/layout/ScreenContainer';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 
 export default function HomeScreen() {
     const { push } = useDebounceNavigation();
     const { user, isLoading: authLoading } = useAuthStore();
     const { tickets, fetchTickets, isLoading: ticketsLoading } = useTicketStore();
     const [showHint, setShowHint] = useState(true);
+    const tabBarPadding = useTabBarPadding();
 
     const rotateAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -121,8 +124,8 @@ export default function HomeScreen() {
     ];
 
     return (
-        <View className="flex-1 bg-gray-50">
-            <ScrollView contentContainerStyle={{ padding: 24 }}>
+        <ScreenContainer backgroundColor="#f9fafb">
+            <ScrollView contentContainerStyle={[{ padding: 24 }, tabBarPadding]}>
                 {/* Header */}
                 <View className="mb-8 flex-row items-end gap-3">
                     <View>
@@ -207,6 +210,6 @@ export default function HomeScreen() {
                     )}
                 </View>
             </ScrollView>
-        </View>
+        </ScreenContainer>
     );
 }

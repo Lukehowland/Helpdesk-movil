@@ -93,13 +93,30 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
     },
 
     fetchCompanyDetail: async (id: string) => {
+        const state = get();
+
+        // 1. Prevent duplicate requests if already loading the same company
+        if (state.selectedCompanyLoading && state.selectedCompany?.id === id) {
+            console.log(`🚫 fetchCompanyDetail(${id}): Already loading this company, skipping duplicate request`);
+            return;
+        }
+
+        // 2. Use cached data if we already have this company loaded
+        if (state.selectedCompany?.id === id && !state.selectedCompanyError) {
+            console.log(`✅ fetchCompanyDetail(${id}): Using cached data`);
+            return;
+        }
+
+        console.log(`🔄 fetchCompanyDetail(${id}): Fetching from API...`);
         set({ selectedCompanyLoading: true, selectedCompanyError: null });
+
         try {
             const response = await client.get(`/api/companies/${id}`);
             set({ selectedCompany: response.data.data, selectedCompanyLoading: false });
+            console.log(`✅ fetchCompanyDetail(${id}): Success`);
         } catch (error) {
             set({ selectedCompanyLoading: false, selectedCompanyError: 'Error al cargar detalle de empresa' });
-            console.error(error);
+            console.error(`❌ fetchCompanyDetail(${id}): Error`, error);
         }
     },
 

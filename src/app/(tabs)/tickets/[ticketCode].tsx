@@ -11,12 +11,17 @@ import { es } from 'date-fns/locale';
 import { TicketConversation } from '@/components/tickets/TicketConversation';
 import { TicketAttachments } from '@/components/tickets/TicketAttachments';
 import { TicketDetailSkeleton } from '@/components/Skeleton';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 
 export default function TicketDetailScreen() {
     const { ticketCode } = useLocalSearchParams();
     const router = useRouter();
     const { fetchTicket, currentTicket, isLoading, reopenTicket } = useTicketStore();
-    const [tab, setTab] = useState<'conversation' | 'info' | 'attachments'>('conversation');
+    const [tab, setTabState] = useState<'conversation' | 'info' | 'attachments'>('conversation');
+
+    const setTab = useDebounceCallback((newTab: 'conversation' | 'info' | 'attachments') => {
+        setTabState(newTab);
+    }, 200); // 200ms delay to prevent rapid tab switching
 
     useEffect(() => {
         if (typeof ticketCode === 'string') {
@@ -27,7 +32,7 @@ export default function TicketDetailScreen() {
         }
     }, [ticketCode]);
 
-    const handleShare = async () => {
+    const handleShare = useDebounceCallback(async () => {
         if (!currentTicket) return;
         try {
             await Share.share({
@@ -36,9 +41,9 @@ export default function TicketDetailScreen() {
         } catch (error) {
             console.error(error);
         }
-    };
+    }, 500); // 500ms delay to prevent multiple share dialogs
 
-    const handleReopen = async () => {
+    const handleReopen = useDebounceCallback(async () => {
         if (!currentTicket) return;
         try {
             await reopenTicket(currentTicket.ticketCode);
@@ -46,7 +51,7 @@ export default function TicketDetailScreen() {
         } catch (error) {
             Alert.alert('Error', 'No se pudo reabrir el ticket');
         }
-    };
+    }, 500); // 500ms delay to prevent multiple reopen requests
 
     if (isLoading || !currentTicket) {
         return <TicketDetailSkeleton />;

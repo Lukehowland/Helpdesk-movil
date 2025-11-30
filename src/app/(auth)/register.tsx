@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../stores/authStore';
 import { ControlledInput } from '../../components/ui/ControlledInput';
 import { registerSchema, RegisterFormData } from '../../schemas/auth';
+import { useDebounceCallback } from '../../hooks/useDebounceCallback';
 
 export default function RegisterScreen() {
     const router = useRouter();
@@ -28,7 +29,7 @@ export default function RegisterScreen() {
         },
     });
 
-    const onSubmit = async (data: RegisterFormData) => {
+    const onSubmit = useDebounceCallback(async (data: RegisterFormData) => {
         try {
             await register(data);
             Alert.alert(
@@ -49,7 +50,7 @@ export default function RegisterScreen() {
 
             Alert.alert('Error de registro', errorMessage);
         }
-    };
+    }, 1000); // 1000ms delay to prevent duplicate account creation
 
     return (
         <SafeAreaView className="flex-1 bg-white">

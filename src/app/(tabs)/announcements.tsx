@@ -6,8 +6,9 @@ import { AnnouncementType } from '../../types/announcement';
 import { AnnouncementCardSkeleton } from '../../components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterPill } from '@/components/ui/FilterPill';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
+import { useTabBarPadding } from '@/hooks/useTabBarPadding';
 
 const FILTERS: { label: string; value: AnnouncementType | 'ALL' }[] = [
     { label: 'Todos', value: 'ALL' },
@@ -20,6 +21,7 @@ const FILTERS: { label: string; value: AnnouncementType | 'ALL' }[] = [
 export default function AnnouncementsScreen() {
     const { push } = useDebounceNavigation();
     const { announcements, fetchAnnouncements, isLoading } = useAnnouncementStore();
+    const tabBarPadding = useTabBarPadding();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedType, setSelectedType] = useState<AnnouncementType | 'ALL'>('ALL');
@@ -40,7 +42,7 @@ export default function AnnouncementsScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50" edges={['left', 'right', 'bottom']}>
+        <ScreenContainer>
             <View className="px-4 pt-4 pb-2">
                 <View className="mb-4">
                     <Text className="text-2xl font-bold text-gray-900 mb-1">Anuncios</Text>
@@ -88,7 +90,7 @@ export default function AnnouncementsScreen() {
                             onPress={() => handlePress(item.id)}
                         />
                     )}
-                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
+                    contentContainerStyle={{ paddingHorizontal: 16, ...tabBarPadding }}
                     ListEmptyComponent={
                         <View className="items-center justify-center mt-8">
                             <Text className="text-gray-500">
@@ -98,6 +100,6 @@ export default function AnnouncementsScreen() {
                     }
                 />
             )}
-        </SafeAreaView>
+        </ScreenContainer>
     );
 }

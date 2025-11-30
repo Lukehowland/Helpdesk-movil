@@ -12,6 +12,7 @@ import { ControlledInput } from '@/components/ui/ControlledInput';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CompanyExploreItem } from '@/types/company';
+import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 
 const createTicketSchema = z.object({
     title: z.string().min(5, 'El título debe tener al menos 5 caracteres'),
@@ -56,6 +57,10 @@ export default function CreateTicketScreen() {
         }
     }, [selectedCompanyId]);
 
+    const handleSelectCompany = useDebounceCallback((companyId: string) => {
+        setSelectedCompanyId(companyId);
+    }, 200); // 200ms delay to prevent rapid company selection changes
+
     const handleNext = () => {
         if (step === 1 && selectedCompanyId) {
             setStep(2);
@@ -84,13 +89,13 @@ export default function CreateTicketScreen() {
         }
     };
 
-    const removeAttachment = (index: number) => {
+    const removeAttachment = useDebounceCallback((index: number) => {
         const newAttachments = [...attachments];
         newAttachments.splice(index, 1);
         setAttachments(newAttachments);
-    };
+    }, 300); // 300ms delay to prevent accidental multiple deletions
 
-    const onSubmit = async (data: CreateTicketData) => {
+    const onSubmit = useDebounceCallback(async (data: CreateTicketData) => {
         if (!selectedCompanyId) return;
 
         try {
@@ -109,7 +114,7 @@ export default function CreateTicketScreen() {
             console.error(error);
             Alert.alert('Error', 'No se pudo crear el ticket');
         }
-    };
+    }, 1000); // 1000ms delay to prevent duplicate ticket creation
 
     const renderStep1 = () => (
         <View>
@@ -128,7 +133,7 @@ export default function CreateTicketScreen() {
                     companies.map((company: CompanyExploreItem) => (
                         <TouchableOpacity
                             key={company.id}
-                            onPress={() => setSelectedCompanyId(company.id)}
+                            onPress={() => handleSelectCompany(company.id)}
                             className={`p-4 mb-3 rounded-xl border-2 flex-row items-center ${selectedCompanyId === company.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}
                         >
                             {company.logoUrl ? (
