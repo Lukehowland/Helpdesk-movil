@@ -1,10 +1,10 @@
-import { View, ScrollView, Text, Alert, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, ScrollView, Text, Alert, TouchableOpacity, Image, Platform, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button, ProgressBar, Card, Avatar, IconButton, TextInput, HelperText, Chip, ActivityIndicator } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCompanyStore } from '@/stores/companyStore';
 import { useTicketStore } from '@/stores/ticketStore';
 import { ControlledInput } from '@/components/ui/ControlledInput';
@@ -46,13 +46,21 @@ export default function CreateTicketScreen() {
     const [submissionProgress, setSubmissionProgress] = useState(0);
     const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
+    // Animation for progress bar
+    const progressAnim = useRef(new Animated.Value(0)).current;
+    // Animation for button visibility
+    const buttonOpacity = useRef(new Animated.Value(0)).current;
+
     const { control, handleSubmit, formState: { errors, isValid }, setValue, watch, trigger } = useForm<CreateTicketData>({
         resolver: zodResolver(createTicketSchema),
-        defaultValues: {
-            priority: 'medium',
-        },
         mode: 'onChange',
     });
+
+    const watchedAreaId = watch('areaId');
+    const watchedCategoryId = watch('categoryId');
+    const watchedPriority = watch('priority');
+    const watchedTitle = watch('title');
+    const watchedDescription = watch('description');
 
     useEffect(() => {
         setFilter('followedByMe', true);
@@ -82,13 +90,47 @@ export default function CreateTicketScreen() {
         loadCompanyData();
     }, [selectedCompanyId]);
 
-    const handleSelectCompany = useDebounceCallback((companyId: string) => {
+    // Smooth progress bar animation
+    useEffect(() => {
+        Animated.timing(progressAnim, {
+            toValue: submissionProgress,
+            duration: 500,
+            useNativeDriver: false,
+        }).start();
+    }, [submissionProgress]);
+
+    // Check step validity for button visibility
+    const isStepValid = () => {
+        if (step === 1) return !!selectedCompanyId;
+        if (step === 2) {
+            if (areasEnabled && subStep === 'area') return !!watchedAreaId;
+            return !!watchedCategoryId;
+        }
+        if (step === 3) return !!watchedPriority;
+        if (step === 4) {
+            return (watchedTitle?.length >= 5) && (watchedDescription?.length >= 20);
+        }
+        return false;
+    };
+
+    const showButton = isStepValid();
+
+    useEffect(() => {
+        Animated.timing(buttonOpacity, {
+            toValue: showButton ? 1 : 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start();
+    }, [showButton]);
+
+    const handleSelectCompany = (companyId: string) => {
         setSelectedCompanyId(companyId);
-        setStep(2);
-    }, 200);
+    };
 
     const handleNext = async () => {
-        if (step === 2) {
+        if (step === 1) {
+            if (selectedCompanyId) setStep(2);
+        } else if (step === 2) {
             if (areasEnabled && subStep === 'area') {
                 const valid = await trigger('areaId');
                 if (valid) setSubStep('category');
@@ -163,10 +205,28 @@ export default function CreateTicketScreen() {
         }
     };
 
+    // Update progress based on status text
+    useEffect(() => {
+        if (isSubmitting && submissionStatus === 'processing') {
+            if (creationStatus.includes('Creando ticket')) setSubmissionProgress(30);
+            else if (creationStatus.includes('Subiendo')) {
+                const match = creationStatus.match(/(\d+) de (\d+)/);
+                if (match) {
+                    const [_, current, total] = match;
+                    const pct = 30 + (parseInt(current) / parseInt(total)) * 60;
+                    setSubmissionProgress(pct);
+                } else {
+                    setSubmissionProgress(50);
+                }
+            }
+        }
+    }, [creationStatus, submissionStatus, isSubmitting]);
+
+
     const renderStep1 = () => (
-        <View>
+        <View className="flex-1 px-6 pt-6">
             <Text className="text-xl font-bold text-gray-900 mb-4">Selecciona una Empresa</Text>
-            <ScrollView className="max-h-[75vh]" showsVerticalScrollIndicator={false}>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
                 {companiesLoading ? (
                     <View className="items-center py-8">
                         <ActivityIndicator size="large" color="#2563eb" />
@@ -182,7 +242,7 @@ export default function CreateTicketScreen() {
                         <TouchableOpacity
                             key={company.id}
                             onPress={() => handleSelectCompany(company.id)}
-                            className={`p-4 mb-3 rounded-2xl border-2 flex-row items-center bg-white border-gray-100 shadow-sm active:border-blue-500 active:bg-blue-50`}
+                            className={`p-4 mb-3 rounded-2xl border-2 flex-row items-center bg-white shadow-sm ${selectedCompanyId === company.id ? 'border-blue-500 bg-blue-50' : 'border-gray-100'}`}
                         >
                             {company.logoUrl ? (
                                 <Avatar.Image size={48} source={{ uri: company.logoUrl }} />
@@ -190,10 +250,14 @@ export default function CreateTicketScreen() {
                                 <Avatar.Text size={48} label={company.name.substring(0, 2)} />
                             )}
                             <View className="ml-4 flex-1">
-                                <Text className="font-bold text-gray-900 text-lg">{company.name}</Text>
+                                <Text className={`font-bold text-lg ${selectedCompanyId === company.id ? 'text-blue-900' : 'text-gray-900'}`}>{company.name}</Text>
                                 <Text className="text-gray-500 text-sm">{typeof company.industry === 'object' ? company.industry?.name : company.industry}</Text>
                             </View>
-                            <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />
+                            {selectedCompanyId === company.id ? (
+                                <MaterialCommunityIcons name="check-circle" size={24} color="#2563eb" />
+                            ) : (
+                                <MaterialCommunityIcons name="chevron-right" size={24} color="#9ca3af" />
+                            )}
                         </TouchableOpacity>
                     ))
                 )}
@@ -207,16 +271,26 @@ export default function CreateTicketScreen() {
         const showCategory = !areasEnabled || subStep === 'category';
 
         return (
-            <View>
-                <Text className="text-xl font-bold text-gray-900 mb-2">Clasificación del Ticket</Text>
-                <Text className="text-gray-500 mb-6">
-                    {showArea ? 'Selecciona el área o departamento correspondiente.' : 'Selecciona la categoría que mejor describa tu problema.'}
-                </Text>
+            <View className="flex-1 px-6 pt-6">
+                <View className="mb-4">
+                    <Text className="text-xl font-bold text-gray-900 mb-2">Clasificación del Ticket</Text>
+                    <Text className="text-gray-500">
+                        {showArea ? 'Selecciona el área o departamento correspondiente.' : 'Selecciona la categoría que mejor describa tu problema.'}
+                    </Text>
+                </View>
+
+                {!loadingAreas && (
+                    <View className="mb-3 border-b border-gray-100 pb-2">
+                        <Text className="text-lg font-semibold text-gray-800">
+                            {showArea ? 'Área / Departamento' : 'Categoría'}
+                        </Text>
+                    </View>
+                )}
 
                 {loadingAreas ? (
                     <ActivityIndicator size="large" color="#2563eb" className="mt-8" />
                 ) : (
-                    <>
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
                         {showArea && (
                             <Controller
                                 control={control}
@@ -268,86 +342,105 @@ export default function CreateTicketScreen() {
                                 )}
                             />
                         )}
-                    </>
+                    </ScrollView>
                 )}
             </View>
         );
     };
 
     const renderStep3 = () => (
-        <View>
-            <Text className="text-xl font-bold text-gray-900 mb-2">Prioridad del Ticket</Text>
-            <Text className="text-gray-500 mb-6">Indica la urgencia de tu solicitud.</Text>
+        <View className="flex-1 px-6 pt-6">
+            <View className="mb-4">
+                <Text className="text-xl font-bold text-gray-900 mb-2">Prioridad del Ticket</Text>
+                <Text className="text-gray-500">Indica la urgencia de tu solicitud.</Text>
+            </View>
 
-            <Controller
-                control={control}
-                name="priority"
-                render={({ field: { onChange, value } }) => (
-                    <View>
-                        {[
-                            {
-                                value: 'low',
-                                label: 'Baja',
-                                description: 'Problemas menores que no afectan el funcionamiento principal.',
-                                color: 'bg-green-50',
-                                border: 'border-green-200',
-                                activeBorder: 'border-green-500',
-                                icon: 'arrow-down',
-                                text: 'text-green-800',
-                                iconColor: '#166534'
-                            },
-                            {
-                                value: 'medium',
-                                label: 'Media',
-                                description: 'Problemas que afectan parcialmente el funcionamiento o requieren atención.',
-                                color: 'bg-yellow-50',
-                                border: 'border-yellow-200',
-                                activeBorder: 'border-yellow-500',
-                                icon: 'minus',
-                                text: 'text-yellow-800',
-                                iconColor: '#854d0e'
-                            },
-                            {
-                                value: 'high',
-                                label: 'Alta',
-                                description: 'Problemas críticos que impiden el funcionamiento total o urgente.',
-                                color: 'bg-red-50',
-                                border: 'border-red-200',
-                                activeBorder: 'border-red-500',
-                                icon: 'arrow-up',
-                                text: 'text-red-800',
-                                iconColor: '#991b1b'
-                            }
-                        ].map((p) => (
-                            <TouchableOpacity
-                                key={p.value}
-                                onPress={() => onChange(p.value)}
-                                className={`p-4 mb-4 rounded-xl border-2 ${value === p.value ? p.activeBorder + ' ' + p.color : 'border-gray-200 bg-white'}`}
-                            >
-                                <View className="flex-row items-center mb-2">
-                                    <View className={`p-2 rounded-full mr-3 ${value === p.value ? 'bg-white/50' : 'bg-gray-100'}`}>
-                                        <MaterialCommunityIcons name={p.icon as any} size={24} color={p.iconColor} />
-                                    </View>
-                                    <Text className={`font-bold text-lg ${value === p.value ? p.text : 'text-gray-900'}`}>
-                                        {p.label}
-                                    </Text>
-                                    {value === p.value && (
-                                        <MaterialCommunityIcons name="check-circle" size={24} color={p.iconColor} className="ml-auto" />
-                                    )}
-                                </View>
-                                <Text className={`text-sm ${value === p.value ? p.text : 'text-gray-500'}`}>
-                                    {p.description}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
-            />
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+                <Controller
+                    control={control}
+                    name="priority"
+                    render={({ field: { onChange, value } }) => (
+                        <View>
+                            {[
+                                {
+                                    id: 'low',
+                                    label: 'Baja - Normal',
+                                    desc: 'Problemas menores que no afectan el funcionamiento principal.',
+                                    icon: 'flash-outline',
+                                    // Green
+                                    styles: {
+                                        bg: 'bg-green-50', bgSel: 'bg-green-100',
+                                        border: 'border-green-200', borderSel: 'border-green-500',
+                                        text: 'text-green-900', textSel: 'text-green-950',
+                                        icon: '#22c55e', iconSel: '#16a34a' // green-500 -> green-600
+                                    }
+                                },
+                                {
+                                    id: 'medium',
+                                    label: 'Media - Importante',
+                                    desc: 'Problemas que afectan parcialmente el funcionamiento o requieren atención.',
+                                    icon: 'clock-outline',
+                                    // Yellow
+                                    styles: {
+                                        bg: 'bg-yellow-50', bgSel: 'bg-yellow-100',
+                                        border: 'border-yellow-200', borderSel: 'border-yellow-500',
+                                        text: 'text-yellow-900', textSel: 'text-yellow-950',
+                                        icon: '#eab308', iconSel: '#ca8a04' // yellow-500 -> yellow-600
+                                    }
+                                },
+                                {
+                                    id: 'high',
+                                    label: 'Alta - Crítico',
+                                    desc: 'Problemas críticos que impiden el funcionamiento total o urgente.',
+                                    icon: 'alert-circle-outline',
+                                    // Red
+                                    styles: {
+                                        bg: 'bg-red-50', bgSel: 'bg-red-100',
+                                        border: 'border-red-200', borderSel: 'border-red-500',
+                                        text: 'text-red-900', textSel: 'text-red-950',
+                                        icon: '#ef4444', iconSel: '#dc2626' // red-500 -> red-600
+                                    }
+                                }
+                            ].map((item) => {
+                                const isSelected = value === item.id;
+                                const s = item.styles;
+
+                                const bgClass = isSelected ? s.bgSel : s.bg;
+                                const borderClass = isSelected ? `${s.borderSel} border-4` : `${s.border} border-2`;
+                                const textClass = isSelected ? s.textSel : s.text;
+                                const iconColor = isSelected ? s.iconSel : s.icon;
+
+                                return (
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        onPress={() => onChange(item.id)}
+                                        activeOpacity={0.7}
+                                        className={`p-5 mb-4 rounded-2xl transition-all ${bgClass} ${borderClass}`}
+                                    >
+                                        <View className="flex-row items-center mb-2">
+                                            <View className={`p-2 rounded-full mr-3 bg-white/60`}>
+                                                <MaterialCommunityIcons name={item.icon as any} size={24} color={iconColor} />
+                                            </View>
+                                            <Text className={`font-bold text-lg ${textClass}`}>
+                                                {item.label}
+                                            </Text>
+
+                                        </View>
+                                        <Text className={`text-sm ${textClass} opacity-90 font-medium`}>
+                                            {item.desc}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
+                />
+            </ScrollView>
         </View>
     );
 
     const renderStep4 = () => (
-        <View>
+        <ScrollView className="flex-1 px-6 pt-6" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <Text className="text-xl font-bold text-gray-900 mb-2">Detalles del Problema</Text>
             <Text className="text-gray-500 mb-6">Describe tu problema y adjunta evidencia si es necesario.</Text>
 
@@ -391,7 +484,7 @@ export default function CreateTicketScreen() {
                     <Text className="text-xs text-gray-400 mt-1 font-medium">Añadir</Text>
                 </TouchableOpacity>
             </View>
-        </View>
+        </ScrollView>
     );
 
     const SubmissionOverlay = () => {
@@ -441,9 +534,14 @@ export default function CreateTicketScreen() {
                             Por favor no cierres la aplicación
                         </Text>
                         <View className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <View
+                            <Animated.View
                                 className="h-full bg-blue-600 rounded-full"
-                                style={{ width: `${submissionProgress}%` }}
+                                style={{
+                                    width: progressAnim.interpolate({
+                                        inputRange: [0, 100],
+                                        outputRange: ['0%', '100%']
+                                    })
+                                }}
                             />
                         </View>
                         <Text className="text-xs text-gray-400 mt-2">{Math.round(submissionProgress)}%</Text>
@@ -457,7 +555,7 @@ export default function CreateTicketScreen() {
         <ScreenContainer backgroundColor="white">
             <SubmissionOverlay />
 
-            <View className="p-4 border-b border-gray-100 flex-row items-center justify-between bg-white">
+            <View className="p-4 border-b border-gray-100 flex-row items-center justify-between bg-white z-10">
                 <TouchableOpacity onPress={handleBack} className="p-2 -ml-2 rounded-full active:bg-gray-100">
                     <MaterialCommunityIcons name="arrow-left" size={24} color="#1f2937" />
                 </TouchableOpacity>
@@ -486,27 +584,30 @@ export default function CreateTicketScreen() {
                 <View className="w-8" />
             </View>
 
-            <ScrollView className="flex-1 px-6 py-6" showsVerticalScrollIndicator={false}>
+            <View className="flex-1">
                 {step === 1 && renderStep1()}
                 {step === 2 && renderStep2()}
                 {step === 3 && renderStep3()}
                 {step === 4 && renderStep4()}
-                <View className="h-20" />
-            </ScrollView>
+            </View>
 
-            {!isSubmitting && (
-                <View className="p-4 border-t border-gray-100 bg-white shadow-lg">
+            {!isSubmitting && showButton && (
+                <Animated.View
+                    style={{ opacity: buttonOpacity }}
+                    className="absolute bottom-6 left-6 right-6 z-20"
+                >
                     <Button
                         mode="contained"
                         onPress={step === 4 ? handleSubmit(onSubmit) : handleNext}
                         loading={isLoading}
                         disabled={isLoading}
-                        className="rounded-xl py-1"
+                        className="rounded-full shadow-lg"
+                        contentStyle={{ height: 50 }}
                         labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
                     >
                         {step === 4 ? 'Enviar Ticket' : 'Continuar'}
                     </Button>
-                </View>
+                </Animated.View>
             )}
         </ScreenContainer>
     );
