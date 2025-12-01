@@ -13,7 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CompanyExploreItem } from '@/types/company';
 import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
-import { ListItemSkeleton, SkeletonBox, SkeletonText } from '@/components/Skeleton';
+import { ListItemSkeleton } from '@/components/Skeleton';
 
 const createTicketSchema = z.object({
     title: z.string().min(5, 'El título debe tener al menos 5 caracteres'),
@@ -25,32 +25,28 @@ const createTicketSchema = z.object({
 
 type CreateTicketData = z.infer<typeof createTicketSchema>;
 
-type ClassificationStep = 'area' | 'category' | 'priority';
-
 export default function CreateTicketScreen() {
     const router = useRouter();
     const { companies, fetchCompanies, companiesLoading, setFilter, clearFilters } = useCompanyStore();
     const { createTicket, isLoading, categories, fetchCategories, creationStatus, checkCompanyAreasEnabled, fetchAreas } = useTicketStore();
 
-    // Main Phases: 1=Company, 2=Classification, 3=Details
-    const [mainPhase, setMainPhase] = useState(1);
-
-    // Classification Sub-steps
-    const [classificationQueue, setClassificationQueue] = useState<ClassificationStep[]>([]);
-    const [currentClassStepIndex, setCurrentClassStepIndex] = useState(0);
+    // Steps: 1=Company, 2=Classification (Area/Category), 3=Priority, 4=Details
+    const [step, setStep] = useState(1);
+    const [classificationSubStep, setClassificationSubStep] = useState<'area' | 'category'>('category'); // 'area' first if enabled
 
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
     const [attachments, setAttachments] = useState<ImagePicker.ImagePickerAsset[]>([]);
 
-    // Data State
+    // Area logic
     const [areasEnabled, setAreasEnabled] = useState(false);
     const [areas, setAreas] = useState<any[]>([]);
-    const [loadingData, setLoadingData] = useState(false);
+    const [loadingAreas, setLoadingAreas] = useState(false);
 
     // Submission State
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionProgress, setSubmissionProgress] = useState(0);
-    const [submissionStatus, setSubmissionStatus] = useState<'creating' | 'uploading' | 'success' | 'error'>('creating');
+    const [submissionStatusText, setSubmissionStatusText] = useState('');
+    const [submissionResult, setSubmissionResult] = useState<'success' | 'error' | null>(null);
 
     const { control, handleSubmit, formState: { errors, isValid }, setValue, watch, trigger } = useForm<CreateTicketData>({
         resolver: zodResolver(createTicketSchema),
@@ -69,29 +65,24 @@ export default function CreateTicketScreen() {
     useEffect(() => {
         const loadCompanyData = async () => {
             if (selectedCompanyId) {
-                setLoadingData(true);
-                // Parallel fetching
-                const [enabled, _] = await Promise.all([
-                    checkCompanyAreasEnabled(selectedCompanyId),
-                    fetchCategories(selectedCompanyId)
-                ]);
-
+                setLoadingAreas(true);
+                // 1. Check Areas first
+                const enabled = await checkCompanyAreasEnabled(selectedCompanyId);
                 setAreasEnabled(enabled);
-                let queue: ClassificationStep[] = [];
 
                 if (enabled) {
                     const companyAreas = await fetchAreas(selectedCompanyId);
                     setAreas(companyAreas);
-                    queue = ['area', 'category', 'priority'];
+                    setClassificationSubStep('area'); // Start with Area if enabled
                 } else {
                     setAreas([]);
                     setValue('areaId', null);
-                    queue = ['category', 'priority'];
+                    setClassificationSubStep('category'); // Skip to Category
                 }
 
-                setClassificationQueue(queue);
-                setCurrentClassStepIndex(0);
-                setLoadingData(false);
+                // 2. Fetch Categories
+                fetchCategories(selectedCompanyId);
+                setLoadingAreas(false);
             }
         };
         loadCompanyData();
@@ -99,40 +90,36 @@ export default function CreateTicketScreen() {
 
     const handleSelectCompany = useDebounceCallback((companyId: string) => {
         setSelectedCompanyId(companyId);
-        setMainPhase(2);
+        setStep(2);
     }, 200);
 
-    const handleNext = async () => {
-        if (mainPhase === 2) {
-            const currentSubStep = classificationQueue[currentClassStepIndex];
-            let valid = false;
+    const handleSelectArea = (areaId: string) => {
+        setValue('areaId', areaId);
+        setClassificationSubStep('category'); // Move to Category sub-step
+    };
 
-            if (currentSubStep === 'area') valid = await trigger('areaId');
-            if (currentSubStep === 'category') valid = await trigger('categoryId');
-            if (currentSubStep === 'priority') valid = await trigger('priority');
+    const handleSelectCategory = (categoryId: string) => {
+        setValue('categoryId', categoryId);
+        // Auto advance to Priority step
+        setStep(3);
+    };
 
-            if (valid) {
-                if (currentClassStepIndex < classificationQueue.length - 1) {
-                    setCurrentClassStepIndex(prev => prev + 1);
-                } else {
-                    setMainPhase(3);
-                }
-            }
-        }
+    const handleSelectPriority = (priority: 'low' | 'medium' | 'high') => {
+        setValue('priority', priority);
+        setStep(4);
     };
 
     const handleBack = () => {
-        if (mainPhase === 3) {
-            setMainPhase(2);
-        } else if (mainPhase === 2) {
-            if (currentClassStepIndex > 0) {
-                setCurrentClassStepIndex(prev => prev - 1);
+        if (step === 1) {
+            router.back();
+        } else if (step === 2) {
+            if (classificationSubStep === 'category' && areasEnabled) {
+                setClassificationSubStep('area'); // Go back to Area sub-step
             } else {
-                setMainPhase(1);
-                setSelectedCompanyId(null);
+                setStep(1);
             }
         } else {
-            router.back();
+            setStep(step - 1);
         }
     };
 
@@ -153,22 +140,21 @@ export default function CreateTicketScreen() {
         setAttachments(newAttachments);
     };
 
-    // Real Submit Handler
-    const handleRealSubmit = async (data: CreateTicketData) => {
+    const onSubmit = async (data: CreateTicketData) => {
         if (!selectedCompanyId) return;
+
         setIsSubmitting(true);
-        setSubmissionStatus('creating');
-        setSubmissionProgress(10);
+        setSubmissionResult(null);
+        setSubmissionProgress(0);
+        setSubmissionStatusText('Iniciando...');
 
         try {
-            // We'll use a timer to simulate progress since we can't get exact upload events from the store easily
-            const timer = setInterval(() => {
-                setSubmissionProgress(prev => {
-                    if (prev >= 90) return 90;
-                    return prev + (Math.random() * 10);
-                });
-            }, 500);
+            // Simulate initial progress
+            setSubmissionStatusText('Creando Ticket...');
+            setSubmissionProgress(0.1);
 
+            // 1. Create Ticket
+            // The store's createTicket handles attachment upload internally
             await createTicket({
                 title: data.title,
                 description: data.description,
@@ -178,29 +164,72 @@ export default function CreateTicketScreen() {
                 company_id: selectedCompanyId
             }, attachments);
 
-            clearInterval(timer);
-            setSubmissionProgress(100);
-            setSubmissionStatus('success');
-
-            setTimeout(() => {
-                router.replace('/(tabs)/tickets');
-            }, 1500);
+            // Success is handled by the useEffect watching creationStatus/isLoading
         } catch (error) {
             console.error(error);
-            setSubmissionStatus('error');
+            setSubmissionResult('error');
             setTimeout(() => {
                 setIsSubmitting(false);
+                setSubmissionResult(null);
             }, 2000);
+            return; // Exit
         }
     };
 
-    const renderStepCompany = () => (
+    // Watch creationStatus to update progress
+    useEffect(() => {
+        if (!isSubmitting) return;
+
+        if (creationStatus === 'Creando ticket...') {
+            setSubmissionProgress(0.2);
+            setSubmissionStatusText(creationStatus);
+        } else if (creationStatus.startsWith('Subiendo')) {
+            // Try to parse "Subiendo archivo X de Y"
+            const match = creationStatus.match(/(\d+) de (\d+)/);
+            if (match) {
+                const current = parseInt(match[1]);
+                const total = parseInt(match[2]);
+                // Map to 30% -> 90%
+                const percentage = 0.3 + ((current / total) * 0.6);
+                setSubmissionProgress(percentage);
+            } else {
+                setSubmissionProgress(0.3);
+            }
+            setSubmissionStatusText(creationStatus);
+        } else if (!isLoading && isSubmitting && !submissionResult) {
+            // Finished
+            setSubmissionProgress(1);
+            setSubmissionStatusText('¡Listo!');
+            setSubmissionResult('success');
+
+            setTimeout(() => {
+                router.replace('/(tabs)/tickets');
+            }, 1000);
+        }
+    }, [creationStatus, isLoading, isSubmitting, submissionResult]);
+
+
+    // Calculate visual progress for the header
+    // Steps: 1, 2 (area/cat), 3, 4
+    // Total segments: 4
+    // If step 2 and area enabled:
+    //   SubStep Area: 1.5 / 4 ?
+    //   SubStep Category: 2 / 4
+    const getHeaderProgress = () => {
+        let current = step;
+        if (step === 2 && areasEnabled && classificationSubStep === 'area') {
+            current = 1.5;
+        }
+        return current / 4;
+    };
+
+    const renderStep1 = () => (
         <View>
             <Text className="text-xl font-bold text-gray-900 mb-4">Selecciona una Empresa</Text>
             <ScrollView className="max-h-[75vh]" showsVerticalScrollIndicator={false}>
                 {companiesLoading ? (
                     <View>
-                        {[1, 2, 3, 4].map(i => (
+                        {[1, 2, 3, 4, 5].map((i) => (
                             <ListItemSkeleton key={i} withAvatar lines={2} className="mb-3" />
                         ))}
                     </View>
@@ -233,163 +262,127 @@ export default function CreateTicketScreen() {
         </View>
     );
 
-    const renderClassificationStep = () => {
-        if (loadingData) {
-            return (
+    const renderStep2 = () => (
+        <View>
+            <Text className="text-xl font-bold text-gray-900 mb-2">Clasificación</Text>
+            <Text className="text-gray-500 mb-6">
+                {classificationSubStep === 'area' && areasEnabled
+                    ? 'Selecciona el área o departamento correspondiente.'
+                    : 'Selecciona la categoría que mejor describa tu problema.'}
+            </Text>
+
+            {loadingAreas ? (
                 <View>
-                    <SkeletonText lines={1} className="w-1/2 mb-2" />
-                    <SkeletonText lines={2} className="mb-6" />
-                    {[1, 2, 3].map(i => (
-                        <SkeletonBox key={i} height={80} width="100%" className="mb-3" borderRadius={12} />
+                    {[1, 2, 3].map((i) => (
+                        <ListItemSkeleton key={i} withAvatar={false} lines={2} className="mb-3" />
                     ))}
                 </View>
-            );
-        }
+            ) : (
+                <>
+                    {/* Area Selection */}
+                    {areasEnabled && classificationSubStep === 'area' && (
+                        <View>
+                            {areas.map((area: any) => (
+                                <TouchableOpacity
+                                    key={area.id}
+                                    onPress={() => handleSelectArea(area.id)}
+                                    className={`p-4 mb-3 rounded-xl border-2 border-gray-200 bg-white active:border-blue-500 active:bg-blue-50`}
+                                >
+                                    <View className="flex-row justify-between items-center mb-1">
+                                        <Text className="font-bold text-base text-gray-900">{area.name}</Text>
+                                        <MaterialCommunityIcons name="chevron-right" size={20} color="#9ca3af" />
+                                    </View>
+                                    {area.description && (
+                                        <Text className="text-gray-500 text-sm leading-snug">{area.description}</Text>
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
 
-        const subStep = classificationQueue[currentClassStepIndex];
+                    {/* Category Selection */}
+                    {(!areasEnabled || classificationSubStep === 'category') && (
+                        <View>
+                            {categories.map((cat: any) => (
+                                <TouchableOpacity
+                                    key={cat.id}
+                                    onPress={() => handleSelectCategory(cat.id)}
+                                    className={`p-4 mb-3 rounded-xl border-2 border-gray-200 bg-white active:border-blue-500 active:bg-blue-50`}
+                                >
+                                    <View className="flex-row justify-between items-center mb-1">
+                                        <Text className="font-bold text-base text-gray-900">{cat.name}</Text>
+                                        <MaterialCommunityIcons name="chevron-right" size={20} color="#9ca3af" />
+                                    </View>
+                                    {cat.description && (
+                                        <Text className="text-gray-500 text-sm leading-snug">{cat.description}</Text>
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </>
+            )}
+        </View>
+    );
 
-        if (subStep === 'area') {
-            return (
-                <View>
-                    <Text className="text-xl font-bold text-gray-900 mb-2">Selecciona el Área</Text>
-                    <Text className="text-gray-500 mb-6">¿A qué departamento va dirigido este ticket?</Text>
-                    <Controller
-                        control={control}
-                        name="areaId"
-                        render={({ field: { onChange, value } }) => (
-                            <View>
-                                {areas.map((area: any) => (
-                                    <TouchableOpacity
-                                        key={area.id}
-                                        onPress={() => onChange(area.id)}
-                                        className={`p-4 mb-3 rounded-xl border-2 ${value === area.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}
-                                    >
-                                        <View className="flex-row justify-between items-center mb-1">
-                                            <Text className={`font-bold text-base ${value === area.id ? 'text-blue-900' : 'text-gray-900'}`}>{area.name}</Text>
-                                            {value === area.id && <MaterialCommunityIcons name="check-circle" size={20} color="#2563eb" />}
-                                        </View>
-                                        {area.description && (
-                                            <Text className="text-gray-500 text-sm leading-snug">{area.description}</Text>
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                    />
-                </View>
-            );
-        }
-
-        if (subStep === 'category') {
-            return (
-                <View>
-                    <Text className="text-xl font-bold text-gray-900 mb-2">Selecciona la Categoría</Text>
-                    <Text className="text-gray-500 mb-6">¿Qué tipo de problema estás experimentando?</Text>
-                    <Controller
-                        control={control}
-                        name="categoryId"
-                        render={({ field: { onChange, value } }) => (
-                            <View>
-                                {categories.map((cat: any) => (
-                                    <TouchableOpacity
-                                        key={cat.id}
-                                        onPress={() => onChange(cat.id)}
-                                        className={`p-4 mb-3 rounded-xl border-2 ${value === cat.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}
-                                    >
-                                        <View className="flex-row justify-between items-center mb-1">
-                                            <Text className={`font-bold text-base ${value === cat.id ? 'text-blue-900' : 'text-gray-900'}`}>{cat.name}</Text>
-                                            {value === cat.id && <MaterialCommunityIcons name="check-circle" size={20} color="#2563eb" />}
-                                        </View>
-                                        {cat.description && (
-                                            <Text className="text-gray-500 text-sm leading-snug">{cat.description}</Text>
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                    />
-                </View>
-            );
-        }
-
-        if (subStep === 'priority') {
-            return (
-                <View>
-                    <Text className="text-xl font-bold text-gray-900 mb-2">Nivel de Prioridad</Text>
-                    <Text className="text-gray-500 mb-6">¿Qué tan urgente es tu solicitud?</Text>
-                    <Controller
-                        control={control}
-                        name="priority"
-                        render={({ field: { onChange, value } }) => (
-                            <View>
-                                {[
-                                    {
-                                        value: 'low',
-                                        label: 'Baja',
-                                        desc: 'Consultas generales o problemas menores que no afectan el trabajo.',
-                                        color: 'bg-green-50',
-                                        border: 'border-green-200',
-                                        activeBorder: 'border-green-500',
-                                        icon: 'arrow-down',
-                                        text: 'text-green-800'
-                                    },
-                                    {
-                                        value: 'medium',
-                                        label: 'Media',
-                                        desc: 'Problemas que afectan parcialmente el trabajo pero permiten continuar.',
-                                        color: 'bg-yellow-50',
-                                        border: 'border-yellow-200',
-                                        activeBorder: 'border-yellow-500',
-                                        icon: 'minus',
-                                        text: 'text-yellow-800'
-                                    },
-                                    {
-                                        value: 'high',
-                                        label: 'Alta',
-                                        desc: 'Problemas críticos que impiden trabajar o afectan a muchos usuarios.',
-                                        color: 'bg-red-50',
-                                        border: 'border-red-200',
-                                        activeBorder: 'border-red-500',
-                                        icon: 'arrow-up',
-                                        text: 'text-red-800'
-                                    }
-                                ].map((p) => (
-                                    <TouchableOpacity
-                                        key={p.value}
-                                        onPress={() => onChange(p.value)}
-                                        className={`p-4 mb-3 rounded-xl border-2 ${value === p.value ? p.activeBorder + ' ' + p.color : 'border-gray-200 bg-white'}`}
-                                    >
-                                        <View className="flex-row items-center mb-2">
-                                            <View className={`p-2 rounded-full mr-3 ${value === p.value ? 'bg-white/50' : 'bg-gray-100'}`}>
-                                                <MaterialCommunityIcons
-                                                    name={p.icon as any}
-                                                    size={24}
-                                                    color={value === p.value ? (p.value === 'high' ? '#991b1b' : p.value === 'medium' ? '#854d0e' : '#166534') : '#6b7280'}
-                                                />
-                                            </View>
-                                            <Text className={`font-bold text-lg ${value === p.value ? p.text : 'text-gray-900'}`}>
-                                                {p.label}
-                                            </Text>
-                                            {value === p.value && <MaterialCommunityIcons name="check-circle" size={24} color={p.value === 'high' ? '#991b1b' : p.value === 'medium' ? '#854d0e' : '#166534'} className="ml-auto" />}
-                                        </View>
-                                        <Text className={`text-sm ${value === p.value ? p.text : 'text-gray-500'}`}>
-                                            {p.desc}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                    />
-                </View>
-            );
-        }
-        return null;
-    };
-
-    const renderStepDetails = () => (
+    const renderStep3 = () => (
         <View>
-            <Text className="text-xl font-bold text-gray-900 mb-2">Detalles del Problema</Text>
-            <Text className="text-gray-500 mb-6">Describe tu problema y adjunta evidencia si es necesario.</Text>
+            <Text className="text-xl font-bold text-gray-900 mb-2">Prioridad</Text>
+            <Text className="text-gray-500 mb-6">¿Qué tan urgente es tu solicitud?</Text>
+
+            {[
+                {
+                    value: 'low',
+                    label: 'Baja',
+                    desc: 'Consultas generales o problemas menores que no afectan el trabajo.',
+                    color: 'bg-green-50',
+                    border: 'border-green-200',
+                    activeBorder: 'border-green-500',
+                    icon: 'arrow-down',
+                    iconColor: '#166534'
+                },
+                {
+                    value: 'medium',
+                    label: 'Media',
+                    desc: 'Problemas que afectan parcialmente el trabajo o requieren atención.',
+                    color: 'bg-yellow-50',
+                    border: 'border-yellow-200',
+                    activeBorder: 'border-yellow-500',
+                    icon: 'minus',
+                    iconColor: '#854d0e'
+                },
+                {
+                    value: 'high',
+                    label: 'Alta',
+                    desc: 'Problemas críticos que impiden trabajar o requieren solución inmediata.',
+                    color: 'bg-red-50',
+                    border: 'border-red-200',
+                    activeBorder: 'border-red-500',
+                    icon: 'arrow-up',
+                    iconColor: '#991b1b'
+                }
+            ].map((p) => (
+                <TouchableOpacity
+                    key={p.value}
+                    onPress={() => handleSelectPriority(p.value as any)}
+                    className={`p-4 mb-4 rounded-xl border-2 ${p.color} ${p.border} active:${p.activeBorder}`}
+                >
+                    <View className="flex-row items-center mb-2">
+                        <View className={`p-2 rounded-full bg-white mr-3`}>
+                            <MaterialCommunityIcons name={p.icon as any} size={24} color={p.iconColor} />
+                        </View>
+                        <Text className="font-bold text-lg text-gray-900">{p.label}</Text>
+                    </View>
+                    <Text className="text-gray-600 text-sm leading-snug ml-1">{p.desc}</Text>
+                </TouchableOpacity>
+            ))}
+        </View>
+    );
+
+    const renderStep4 = () => (
+        <View>
+            <Text className="text-xl font-bold text-gray-900 mb-2">Detalles Finales</Text>
+            <Text className="text-gray-500 mb-6">Describe tu problema y adjunta evidencia.</Text>
 
             <ControlledInput
                 control={control}
@@ -431,6 +424,17 @@ export default function CreateTicketScreen() {
                     <Text className="text-xs text-gray-400 mt-1 font-medium">Añadir</Text>
                 </TouchableOpacity>
             </View>
+
+            <Button
+                mode="contained"
+                onPress={handleSubmit(onSubmit)}
+                loading={isLoading}
+                disabled={isLoading}
+                className="mt-4 rounded-xl"
+                contentStyle={{ height: 48 }}
+            >
+                Crear Ticket
+            </Button>
         </View>
     );
 
@@ -439,7 +443,7 @@ export default function CreateTicketScreen() {
 
         return (
             <View className="absolute inset-0 bg-white/95 z-50 items-center justify-center px-8">
-                {submissionStatus === 'success' ? (
+                {submissionResult === 'success' ? (
                     <View className="items-center">
                         <View className="bg-green-100 p-6 rounded-full mb-6">
                             <MaterialCommunityIcons name="check" size={48} color="#166534" />
@@ -447,7 +451,7 @@ export default function CreateTicketScreen() {
                         <Text className="text-2xl font-bold text-gray-900 text-center mb-2">¡Ticket Creado!</Text>
                         <Text className="text-gray-500 text-center">Tu solicitud ha sido registrada correctamente.</Text>
                     </View>
-                ) : submissionStatus === 'error' ? (
+                ) : submissionResult === 'error' ? (
                     <View className="items-center">
                         <View className="bg-red-100 p-6 rounded-full mb-6">
                             <MaterialCommunityIcons name="alert" size={48} color="#991b1b" />
@@ -459,13 +463,13 @@ export default function CreateTicketScreen() {
                     <View className="items-center w-full">
                         <ActivityIndicator size="large" color="#2563eb" className="mb-8" />
                         <Text className="text-xl font-bold text-gray-900 mb-2">
-                            {submissionStatus === 'creating' ? 'Creando Ticket...' : 'Subiendo Archivos...'}
+                            {submissionStatusText || 'Procesando...'}
                         </Text>
                         <Text className="text-gray-500 text-center mb-6">
-                            {creationStatus || `${Math.round(submissionProgress)}% Completado`}
+                            {Math.round(submissionProgress * 100)}% completado
                         </Text>
                         <ProgressBar
-                            progress={submissionProgress / 100}
+                            progress={submissionProgress}
                             color="#2563eb"
                             className="h-2 rounded-full w-full bg-gray-100"
                         />
@@ -473,19 +477,6 @@ export default function CreateTicketScreen() {
                 )}
             </View>
         );
-    };
-
-    // Calculate progress for top bar
-    const getTopBarProgress = () => {
-        if (mainPhase === 1) return 0.33;
-        if (mainPhase === 3) return 1.0;
-
-        // Phase 2: Classification
-        if (classificationQueue.length === 0) return 0.33;
-
-        const subProgress = (currentClassStepIndex + 1) / classificationQueue.length;
-        // Map subProgress (0-1) to the range (0.33 - 0.66)
-        return 0.33 + (subProgress * 0.33);
     };
 
     return (
@@ -497,39 +488,27 @@ export default function CreateTicketScreen() {
                     <MaterialCommunityIcons name="arrow-left" size={24} color="#1f2937" />
                 </TouchableOpacity>
                 <View className="flex-row gap-1">
-                    {/* Visual indicators for 3 main phases */}
-                    <View className={`h-1.5 w-8 rounded-full ${mainPhase >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-                    <View className={`h-1.5 w-8 rounded-full ${mainPhase >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-                    <View className={`h-1.5 w-8 rounded-full ${mainPhase >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    {[1, 2, 3, 4].map(i => (
+                        <View
+                            key={i}
+                            className={`h-1.5 w-6 rounded-full ${step >= i ? 'bg-blue-600' : 'bg-gray-200'}`}
+                        />
+                    ))}
                 </View>
                 <View className="w-8" />
             </View>
 
-            <View className="px-6 py-2">
-                <ProgressBar progress={getTopBarProgress()} color="#2563eb" className="h-1 rounded-full bg-gray-100" />
+            <View className="px-6 pt-4 pb-2">
+                <ProgressBar progress={getHeaderProgress()} color="#2563eb" className="h-1 rounded-full bg-gray-100" />
             </View>
 
             <ScrollView className="flex-1 px-6 py-6" showsVerticalScrollIndicator={false}>
-                {mainPhase === 1 && renderStepCompany()}
-                {mainPhase === 2 && renderClassificationStep()}
-                {mainPhase === 3 && renderStepDetails()}
+                {step === 1 && renderStep1()}
+                {step === 2 && renderStep2()}
+                {step === 3 && renderStep3()}
+                {step === 4 && renderStep4()}
                 <View className="h-20" />
             </ScrollView>
-
-            {/* Footer Button */}
-            {!isSubmitting && (
-                <View className="p-4 border-t border-gray-100 bg-white shadow-lg">
-                    <Button
-                        mode="contained"
-                        onPress={mainPhase === 3 ? handleSubmit(handleRealSubmit) : handleNext}
-                        disabled={(mainPhase === 1 && !selectedCompanyId) || loadingData}
-                        className="rounded-xl py-1"
-                        labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
-                    >
-                        {mainPhase === 3 ? 'Enviar Ticket' : 'Continuar'}
-                    </Button>
-                </View>
-            )}
         </ScreenContainer>
     );
 }
