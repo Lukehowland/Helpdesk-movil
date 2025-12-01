@@ -1,7 +1,7 @@
-import { View, FlatList, Text, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, FlatList, Text, RefreshControl, TouchableOpacity, Animated } from 'react-native';
 import { SegmentedButtons, FAB } from 'react-native-paper';
 import { useTicketStore } from '@/stores/ticketStore';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { TicketCard } from '@/components/tickets/TicketCard';
 import { debounce } from 'lodash';
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
@@ -11,6 +11,7 @@ import { TicketCardSkeleton } from '@/components/Skeleton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 import { useTabBarPadding } from '@/hooks/useTabBarPadding';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MyTicketsScreen() {
     const { push } = useDebounceNavigation();
@@ -21,6 +22,10 @@ export default function MyTicketsScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [refreshing, setRefreshing] = useState(false);
+
+    // Hint State
+    const [showHint, setShowHint] = useState(false);
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const loadData = async () => {
         try {
@@ -34,6 +39,39 @@ export default function MyTicketsScreen() {
             setRefreshing(false);
         }
     };
+
+    // Check for hint
+    useEffect(() => {
+        const checkHint = async () => {
+            try {
+                const hasSeen = await AsyncStorage.getItem('hasSeenCreateTicketHint');
+                if (!hasSeen) {
+                    setShowHint(true);
+                    Animated.timing(fadeAnim, {
+                        toValue: 1,
+                        duration: 500,
+                        useNativeDriver: true,
+                    }).start();
+
+                    // Mark as seen immediately so it doesn't show again next time
+                    await AsyncStorage.setItem('hasSeenCreateTicketHint', 'true');
+
+                    // Auto hide after 8 seconds
+                    setTimeout(() => {
+                        Animated.timing(fadeAnim, {
+                            toValue: 0,
+                            duration: 500,
+                            useNativeDriver: true,
+                        }).start(() => setShowHint(false));
+                    }, 8000);
+                }
+            } catch (error) {
+                console.error('Error checking hint status:', error);
+            }
+        };
+
+        checkHint();
+    }, []);
 
     // Debounced search
     const debouncedSearch = useCallback(
@@ -136,6 +174,17 @@ export default function MyTicketsScreen() {
                         </View>
                     )}
                 />
+            )}
+
+            {/* Hint Balloon */}
+            {showHint && (
+                <Animated.View
+                    style={{ opacity: fadeAnim }}
+                    className="absolute bottom-24 right-4 bg-blue-600 px-4 py-2 rounded-xl shadow-lg z-50"
+                >
+                    <Text className="text-white font-bold">¡Crea tu ticket aquí!</Text>
+                    <View className="absolute -bottom-1 right-6 w-3 h-3 bg-blue-600 rotate-45" />
+                </Animated.View>
             )}
 
             <FAB

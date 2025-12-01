@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CompanyExploreItem } from '@/types/company';
 import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
+import { CompanyCardSkeleton, SelectionCardSkeleton } from '@/components/Skeleton';
 
 const createTicketSchema = z.object({
     title: z.string().min(5, 'El título debe tener al menos 5 caracteres'),
@@ -228,9 +229,10 @@ export default function CreateTicketScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">Selecciona una Empresa</Text>
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
                 {companiesLoading ? (
-                    <View className="items-center py-8">
-                        <ActivityIndicator size="large" color="#2563eb" />
-                        <Text className="text-gray-500 text-center mt-4">Cargando empresas...</Text>
+                    <View className="py-2">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <CompanyCardSkeleton key={i} />
+                        ))}
                     </View>
                 ) : companies.length === 0 ? (
                     <View className="items-center py-8">
@@ -288,7 +290,11 @@ export default function CreateTicketScreen() {
                 )}
 
                 {loadingAreas ? (
-                    <ActivityIndicator size="large" color="#2563eb" className="mt-8" />
+                    <View className="mt-4">
+                        {[1, 2, 3, 4].map((i) => (
+                            <SelectionCardSkeleton key={i} />
+                        ))}
+                    </View>
                 ) : (
                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
                         {showArea && (

@@ -13,11 +13,9 @@ export default function HomeScreen() {
     const { push } = useDebounceNavigation();
     const { user, isLoading: authLoading } = useAuthStore();
     const { tickets, fetchTickets, isLoading: ticketsLoading } = useTicketStore();
-    const [showHint, setShowHint] = useState(true);
     const tabBarPadding = useTabBarPadding();
 
     const rotateAnim = useRef(new Animated.Value(0)).current;
-    const fadeAnim = useRef(new Animated.Value(1)).current;
 
     const waveAnimationSequence = () => {
         return Animated.sequence([
@@ -70,19 +68,11 @@ export default function HomeScreen() {
                 playWaveAnimation();
             }, 3000);
 
-            // Hide hint after 5 seconds
-            const hintTimeout = setTimeout(() => {
-                Animated.timing(fadeAnim, {
-                    toValue: 0,
-                    duration: 500,
-                    useNativeDriver: true,
-                }).start(() => setShowHint(false));
-            }, 5000);
+
 
             return () => {
                 clearTimeout(firstTimeout);
                 clearTimeout(secondTimeout);
-                clearTimeout(hintTimeout);
             };
         }
     }, [authLoading]);
@@ -98,7 +88,6 @@ export default function HomeScreen() {
             color: 'bg-blue-100',
             iconColor: '#2563eb',
             route: '/(tabs)/tickets/create',
-            showHint: true,
         },
         {
             title: 'Mis Tickets',
@@ -171,16 +160,7 @@ export default function HomeScreen() {
                                 <Text className="font-medium text-gray-900">{action.title}</Text>
                             </TouchableOpacity>
 
-                            {/* Hint Cloud */}
-                            {action.showHint && showHint && (
-                                <Animated.View
-                                    style={{ opacity: fadeAnim }}
-                                    className="absolute -top-10 -right-2 bg-blue-600 px-3 py-1.5 rounded-lg shadow-lg z-10"
-                                >
-                                    <Text className="text-white text-xs font-bold">¡Crea tu ticket!</Text>
-                                    <View className="absolute -bottom-1 left-4 w-2 h-2 bg-blue-600 rotate-45" />
-                                </Animated.View>
-                            )}
+
                         </View>
                     ))}
                 </View>

@@ -10,6 +10,7 @@ export { SkeletonText } from './atoms/SkeletonText';
 export { ListItemSkeleton } from './molecules/ListItemSkeleton';
 export { CardSkeleton } from './molecules/CardSkeleton';
 export { FormSkeleton } from './molecules/FormSkeleton';
+export { SelectionCardSkeleton } from './molecules/SelectionCardSkeleton';
 
 // Organisms
 export { TicketCardSkeleton } from './organisms/TicketCardSkeleton';
