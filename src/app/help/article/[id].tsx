@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Text } from 'react-native';
+import { View, ScrollView, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTheme, Button, ActivityIndicator, Divider } from 'react-native-paper';
+import { useTheme, Button, ActivityIndicator, Avatar } from 'react-native-paper';
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
 import { useArticleStore } from '../../../stores/articleStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -32,72 +32,91 @@ export default function ArticleDetailScreen() {
 
     if (isLoading || !currentArticle) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary[600]} />
+            <View className="flex-1 justify-center items-center bg-gray-50">
+                <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
         );
     }
 
     if (error) {
         return (
-            <View style={styles.errorContainer}>
-                <Text>{error}</Text>
-                <Button onPress={() => router.back()}>Volver</Button>
+            <View className="flex-1 justify-center items-center bg-gray-50 p-4">
+                <Text className="text-gray-600 mb-4">{error}</Text>
+                <Button mode="contained" onPress={() => router.back()}>Volver</Button>
             </View>
         );
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View className="flex-1 bg-gray-50">
             <ScreenHeader title="Artículo" showBack={true} />
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.header}>
-                    <View style={styles.categoryBadge}>
-                        <Text style={[styles.categoryText, { color: theme.colors.primary[600] }]}>
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+                {/* Header Info */}
+                <View className="flex-row justify-between items-center mb-4">
+                    <View className="bg-purple-100 px-3 py-1 rounded-full">
+                        <Text className="text-purple-700 font-bold text-xs">
                             {currentArticle.category.name}
                         </Text>
                     </View>
-                    <Text style={[styles.date, { color: theme.colors.onSurfaceVariant }]}>
-                        Actualizado {format(new Date(currentArticle.updatedAt), 'PPP', { locale: es })}
+                    <Text className="text-gray-500 text-xs">
+                        Publicado {currentArticle.publishedAt && !isNaN(new Date(currentArticle.publishedAt).getTime())
+                            ? format(new Date(currentArticle.publishedAt), 'PPP', { locale: es })
+                            : 'Recientemente'}
                     </Text>
                 </View>
 
-                <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+                {/* Title */}
+                <Text className="text-2xl font-bold text-gray-900 mb-4 leading-8">
                     {currentArticle.title}
                 </Text>
 
-                <View style={styles.metaRow}>
-                    <View style={styles.metaItem}>
-                        <MaterialCommunityIcons name="domain" size={14} color={theme.colors.onSurfaceVariant} />
-                        <Text style={[styles.metaText, { color: theme.colors.onSurfaceVariant }]}>
-                            {currentArticle.company.name}
-                        </Text>
+                {/* Company & Meta */}
+                <View className="flex-row items-center justify-between mb-6 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                    <View className="flex-row items-center">
+                        {currentArticle.company.logoUrl ? (
+                            <Avatar.Image size={32} source={{ uri: currentArticle.company.logoUrl }} />
+                        ) : (
+                            <Avatar.Text size={32} label={currentArticle.company.name.substring(0, 2).toUpperCase()} />
+                        )}
+                        <View className="ml-3">
+                            <Text className="text-sm font-semibold text-gray-800">
+                                {currentArticle.company.name}
+                            </Text>
+                            <Text className="text-xs text-gray-500">
+                                Autor
+                            </Text>
+                        </View>
                     </View>
-                    <View style={styles.metaItem}>
-                        <MaterialCommunityIcons name="eye-outline" size={14} color={theme.colors.onSurfaceVariant} />
-                        <Text style={[styles.metaText, { color: theme.colors.onSurfaceVariant }]}>
-                            {currentArticle.viewsCount} vistas
-                        </Text>
+                    <View className="flex-row gap-4">
+                        <View className="items-center">
+                            <MaterialCommunityIcons name="eye-outline" size={20} color="#6B7280" />
+                            <Text className="text-xs text-gray-500 mt-1">{currentArticle.viewsCount || 0}</Text>
+                        </View>
                     </View>
                 </View>
 
-                <Divider style={styles.divider} />
-
-                <View style={styles.body}>
+                {/* Content */}
+                <View className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm min-h-[200px]">
                     <Markdown style={markdownStyles}>
                         {currentArticle.content}
                     </Markdown>
                 </View>
 
-                <Divider style={styles.divider} />
+                {/* Updated At */}
+                <Text className="text-gray-400 text-xs text-right mt-2 mb-6">
+                    Última actualización: {currentArticle.updatedAt && !isNaN(new Date(currentArticle.updatedAt).getTime())
+                        ? format(new Date(currentArticle.updatedAt), 'PPP', { locale: es })
+                        : 'Recientemente'}
+                </Text>
 
-                <View style={styles.feedbackContainer}>
-                    <Text style={styles.feedbackTitle}>¿Fue útil este artículo?</Text>
-                    <View style={styles.feedbackButtons}>
-                        <Button mode="outlined" icon="thumb-up-outline" onPress={() => { }}>
+                {/* Feedback */}
+                <View className="items-center mb-8 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                    <Text className="text-base font-medium text-gray-800 mb-4">¿Fue útil este artículo?</Text>
+                    <View className="flex-row gap-4">
+                        <Button mode="outlined" icon="thumb-up-outline" onPress={() => { }} className="border-gray-300">
                             Sí
                         </Button>
-                        <Button mode="outlined" icon="thumb-down-outline" onPress={() => { }}>
+                        <Button mode="outlined" icon="thumb-down-outline" onPress={() => { }} className="border-gray-300">
                             No
                         </Button>
                     </View>
@@ -106,99 +125,41 @@ export default function ArticleDetailScreen() {
                 <Button
                     mode="contained"
                     onPress={() => router.push('/(tabs)/tickets')}
-                    style={styles.actionButton}
-                    buttonColor={theme.colors.primary[600]}
+                    className="mt-2"
+                    buttonColor={theme.colors.primary}
+                    contentStyle={{ height: 48 }}
                 >
                     ¿Necesitas más ayuda? Crear Ticket
                 </Button>
-            </ScrollView>
-        </View>
+            </ScrollView >
+        </View >
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    errorContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    content: {
-        padding: 20,
-        paddingBottom: 40,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    categoryBadge: {
-        backgroundColor: '#F3E8FF',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    categoryText: {
-        fontWeight: 'bold',
-        fontSize: 12,
-    },
-    date: {
-        fontSize: 12,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 8,
-        lineHeight: 32,
-    },
-    metaRow: {
-        flexDirection: 'row',
-        gap: 16,
-        marginBottom: 16,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    metaText: {
-        fontSize: 12,
-    },
-    divider: {
-        marginVertical: 20,
-    },
-    body: {
-        minHeight: 200,
-    },
-    feedbackContainer: {
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    feedbackTitle: {
-        fontSize: 16,
-        fontWeight: '500',
-        marginBottom: 12,
-    },
-    feedbackButtons: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    actionButton: {
-        marginTop: 10,
-    },
-});
 
 const markdownStyles = {
     body: {
         fontSize: 16,
         lineHeight: 24,
+        color: '#374151', // gray-700
+    },
+    heading1: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        marginTop: 20,
+        color: '#111827', // gray-900
+    },
+    heading2: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        marginTop: 16,
+        color: '#1F2937', // gray-800
+    },
+    paragraph: {
+        marginBottom: 10,
+    },
+    list_item: {
+        marginBottom: 5,
     },
 };

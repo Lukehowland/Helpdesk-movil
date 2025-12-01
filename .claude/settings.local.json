@@ -4,7 +4,9 @@
       "Bash(npx tsc --noEmit)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(timeout 30 sleep:*)"
+      "Bash(timeout 30 sleep:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill -9)"
     ],
     "deny": [],
     "ask": []

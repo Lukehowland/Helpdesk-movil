@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme, Searchbar, ActivityIndicator, Text } from 'react-native-paper';
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
 import { useArticleStore } from '../../../stores/articleStore';
@@ -10,6 +10,7 @@ import { useDebounceNavigation } from '@/hooks/useDebounceNavigation';
 
 export default function ArticlesByCategoryScreen() {
     const { code } = useLocalSearchParams();
+    const router = useRouter();
     const theme = useTheme();
     const { push } = useDebounceNavigation();
     const { articles, fetchArticles, isLoading, categories } = useArticleStore();
@@ -36,7 +37,17 @@ export default function ArticlesByCategoryScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <ScreenHeader title={categoryName} showBack={true} />
+            <ScreenHeader
+                title={categoryName}
+                showBack={true}
+                onBack={() => {
+                    if (router.canGoBack()) {
+                        router.back();
+                    } else {
+                        router.replace('/(tabs)/help');
+                    }
+                }}
+            />
 
             <View style={styles.searchContainer}>
                 <Searchbar

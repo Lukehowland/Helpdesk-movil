@@ -26,7 +26,6 @@ export interface Article {
         logoUrl?: string | null;
     };
     viewsCount: number;
-    helpfulCount: number;
     publishedAt: string;
     updatedAt: string;
     status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';

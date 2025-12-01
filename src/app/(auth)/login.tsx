@@ -1,124 +1,134 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Checkbox, ActivityIndicator } from 'react-native-paper';
+import { Checkbox } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInUp, SlideInDown } from 'react-native-reanimated';
 import { useAuthStore } from '../../stores/authStore';
 import { ControlledInput } from '../../components/ui/ControlledInput';
+import { GoogleButton } from '../../components/ui/GoogleButton';
 import { loginSchema, LoginFormData } from '../../schemas/auth';
-import { Logo } from '../../components/ui/Logo';
+import { StatusBar } from 'expo-status-bar';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
     const router = useRouter();
     const login = useAuthStore((state) => state.login);
     const isLoading = useAuthStore((state) => state.isLoading);
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
 
     const { control, handleSubmit } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
         defaultValues: {
             email: '',
             password: '',
-            rememberDevice: false,
         },
     });
 
     const onSubmit = async (data: LoginFormData) => {
         try {
             await login(data.email, data.password);
-            // Navigation is handled in the store upon success
+            router.replace('/(tabs)/home');
         } catch (error: any) {
-            const status = error.response?.status;
-            const message = error.response?.data?.message || error.message;
-            const details = error.response?.data ? JSON.stringify(error.response.data) : '';
-
-            Alert.alert(
-                `Error ${status || ''}`,
-                `${message}\n${details}`
-            );
+            Alert.alert('Error', error.response?.data?.message || 'Credenciales inválidas');
         }
     };
 
+    const handleGoogleLogin = () => {
+        Alert.alert('Próximamente', 'Funcionalidad en desarrollo');
+    };
+
     return (
-        <SafeAreaView className="flex-1 bg-white">
-            <View className="flex-1 px-6 justify-center">
-                <View className="items-center mb-8">
-                    <Logo size="md" />
-                    <Text className="text-2xl font-bold mt-6 text-gray-900">Iniciar Sesión</Text>
-                    <Text className="text-gray-500 mt-2">Bienvenido de nuevo</Text>
-                </View>
-
-                <ControlledInput
-                    control={control}
-                    name="email"
-                    label="Correo Electrónico"
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                />
-
-                <ControlledInput
-                    control={control}
-                    name="password"
-                    label="Contraseña"
-                    secureTextEntry={!showPassword}
-                    right={
-                        <Button
-                            onPress={() => setShowPassword(!showPassword)}
-                            compact
-                            textColor="#6b7280"
-                        >
-                            {showPassword ? 'Ocultar' : 'Mostrar'}
-                        </Button>
-                    }
-                />
-
-                <View className="flex-row items-center justify-between mb-6">
-                    <View className="flex-row items-center">
-                        <Controller
-                            control={control}
-                            name="rememberDevice"
-                            render={({ field: { value, onChange } }) => (
-                                <Checkbox.Android
-                                    status={value ? 'checked' : 'unchecked'}
-                                    onPress={() => onChange(!value)}
-                                    color="#2563eb"
-                                />
-                            )}
-                        />
-                        <Text className="text-gray-600 ml-1">Recordar dispositivo</Text>
+        <View className="flex-1 bg-blue-600">
+            <StatusBar style="light" />
+            <SafeAreaView className="flex-1" edges={['top']}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    className="flex-1"
+                >
+                    {/* Header Section */}
+                    <View className="h-[25%] justify-center px-8">
+                        <TouchableOpacity onPress={() => router.back()} className="mb-6 w-10 h-10 bg-white/20 rounded-full items-center justify-center">
+                            <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
+                        </TouchableOpacity>
+                        <Text className="text-white text-4xl font-bold mb-2">Bienvenido</Text>
+                        <Text className="text-blue-100 text-lg">Inicia sesión para continuar</Text>
                     </View>
 
-                    <Link href="/(auth)/forgot-password" asChild>
-                        <TouchableOpacity>
-                            <Text className="text-blue-600 font-medium">¿Olvidaste tu contraseña?</Text>
-                        </TouchableOpacity>
-                    </Link>
-                </View>
+                    {/* Form Section */}
+                    <Animated.View
+                        entering={SlideInDown.duration(500).springify()}
+                        className="flex-1 bg-white rounded-t-[32px] px-8 pt-10 shadow-2xl"
+                    >
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                            <View className="space-y-2">
+                                <ControlledInput
+                                    control={control}
+                                    name="email"
+                                    label="Correo Electrónico"
+                                    autoCapitalize="none"
+                                    keyboardType="email-address"
+                                    leftIcon="email-outline"
+                                    placeholder="ejemplo@correo.com"
+                                />
 
-                <Button
-                    mode="contained"
-                    onPress={handleSubmit(onSubmit)}
-                    loading={isLoading}
-                    disabled={isLoading}
-                    contentStyle={{ height: 50 }}
-                    className="rounded-xl bg-blue-600 mb-6"
-                >
-                    Iniciar Sesión
-                </Button>
+                                <ControlledInput
+                                    control={control}
+                                    name="password"
+                                    label="Contraseña"
+                                    secureTextEntry={!showPassword}
+                                    leftIcon="lock-outline"
+                                    rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+                                    onRightIconPress={() => setShowPassword(!showPassword)}
+                                    placeholder="••••••••"
+                                />
+                            </View>
 
-                <View className="flex-row justify-center mt-4">
-                    <Text className="text-gray-600">¿No tienes cuenta? </Text>
-                    <Link href="/(auth)/register" asChild>
-                        <TouchableOpacity>
-                            <Text className="text-blue-600 font-bold">Regístrate</Text>
-                        </TouchableOpacity>
-                    </Link>
-                </View>
-            </View>
-        </SafeAreaView>
+                            <View className="flex-row justify-between items-center mt-2 mb-8">
+                                <View className="flex-row items-center">
+                                    <Checkbox.Android
+                                        status={rememberMe ? 'checked' : 'unchecked'}
+                                        onPress={() => setRememberMe(!rememberMe)}
+                                        color="#2563eb"
+                                    />
+                                    <Text className="text-gray-600 ml-1">Recordarme</Text>
+                                </View>
+                                <Link href="/(auth)/forgot-password" asChild>
+                                    <TouchableOpacity>
+                                        <Text className="text-blue-600 font-bold text-sm">¿Olvidaste tu contraseña?</Text>
+                                    </TouchableOpacity>
+                                </Link>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleSubmit(onSubmit)}
+                                disabled={isLoading}
+                                className="flex-row items-center justify-center bg-blue-600 rounded-xl h-14 shadow-lg shadow-blue-600/30 mb-6 active:bg-blue-700"
+                            >
+                                <Text className="text-white font-bold text-base">
+                                    {isLoading ? 'Cargando...' : 'Iniciar Sesión'}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <GoogleButton onPress={handleGoogleLogin} />
+
+                            <View className="flex-row justify-center mt-6">
+                                <Text className="text-gray-500 font-medium">¿No tienes cuenta? </Text>
+                                <Link href="/(auth)/register" asChild>
+                                    <TouchableOpacity>
+                                        <Text className="text-blue-600 font-bold">Regístrate</Text>
+                                    </TouchableOpacity>
+                                </Link>
+                            </View>
+                        </ScrollView>
+                    </Animated.View>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </View>
     );
 }
-
-import { Controller } from 'react-hook-form';

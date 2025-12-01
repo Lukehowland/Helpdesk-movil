@@ -77,7 +77,7 @@ export default function HelpScreen() {
                             <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
                                 ARTÍCULOS POPULARES
                             </Text>
-                            <View style={[styles.popularList, { backgroundColor: theme.colors.surface }]}>
+                            <View style={styles.popularList}>
                                 <ListItemSkeleton lines={2} withAvatar={false} />
                                 <ListItemSkeleton lines={2} withAvatar={false} />
                                 <ListItemSkeleton lines={2} withAvatar={false} />
@@ -100,7 +100,7 @@ export default function HelpScreen() {
                             <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
                                 ARTÍCULOS POPULARES
                             </Text>
-                            <View style={[styles.popularList, { backgroundColor: theme.colors.surface }]}>
+                            <View style={styles.popularList}>
                                 {popularArticles.map((article) => (
                                     <ArticleCard
                                         key={article.id}
@@ -147,8 +147,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     popularList: {
-        marginHorizontal: 16,
-        borderRadius: 12,
-        overflow: 'hidden',
+        paddingHorizontal: 16,
     },
 });
