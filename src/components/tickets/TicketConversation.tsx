@@ -1,4 +1,4 @@
-import { View, FlatList, Text, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity, Alert } from 'react-native';
+import { View, FlatList, Text, TextInput, TouchableOpacity, Alert, Keyboard, StyleSheet } from 'react-native';
 import { Avatar, IconButton, ActivityIndicator } from 'react-native-paper';
 import { useTicketStore } from '@/stores/ticketStore';
 import { useEffect, useState, useRef } from 'react';
@@ -25,13 +25,14 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
         fetchTicketResponses(ticket.ticketCode);
         const interval = setInterval(() => {
             fetchTicketResponses(ticket.ticketCode);
-        }, 10000); // Poll every 10s
+        }, 10000);
         return () => clearInterval(interval);
     }, [ticket.ticketCode]);
 
     const handleSend = async () => {
         if (!message.trim() && attachments.length === 0) return;
 
+        Keyboard.dismiss();
         setSending(true);
         try {
             await createResponse(ticket.ticketCode, message, attachments);
@@ -59,7 +60,7 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
     };
 
     const renderItem = ({ item }: { item: TicketResponse }) => {
-        const isMe = item.authorType === 'user'; // Or check ID
+        const isMe = item.authorType === 'user';
 
         return (
             <View className={`flex-row mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -72,8 +73,7 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
                 )}
 
                 <View
-                    className={`max-w-[80%] p-3 rounded-2xl ${isMe ? 'bg-blue-600 rounded-tr-none' : 'bg-gray-100 rounded-tl-none'
-                        }`}
+                    className={`max-w-[80%] p-3 rounded-2xl ${isMe ? 'bg-blue-600 rounded-tr-none' : 'bg-gray-100 rounded-tl-none'}`}
                 >
                     {!isMe && (
                         <View className="flex-row items-center mb-1">
@@ -109,22 +109,19 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
     };
 
     return (
-        <View className="flex-1 bg-white">
+        <View style={styles.container}>
             <FlatList
                 ref={flatListRef}
                 data={currentTicketResponses}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
+                contentContainerStyle={styles.listContent}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+                keyboardShouldPersistTaps="handled"
             />
 
-            {ticket.status !== 'closed' && (
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-                    className="border-t border-gray-200 p-2 bg-white"
-                >
+            {ticket.status !== 'closed' ? (
+                <View style={styles.inputContainer}>
                     {attachments.length > 0 && (
                         <View className="flex-row p-2">
                             {attachments.map((file, index) => (
@@ -149,8 +146,7 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
                             onChangeText={setMessage}
                             placeholder="Escribe una respuesta..."
                             multiline
-                            className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 min-h-[40px] max-h-[100px] mr-2 text-base"
-                            style={{ paddingTop: 10, paddingBottom: 10 }}
+                            style={styles.textInput}
                         />
 
                         <View className="pb-1">
@@ -167,10 +163,8 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
                             )}
                         </View>
                     </View>
-                </KeyboardAvoidingView>
-            )}
-
-            {ticket.status === 'closed' && (
+                </View>
+            ) : (
                 <View className="p-4 bg-gray-100 items-center">
                     <Text className="text-gray-500">Este ticket está cerrado y no admite nuevas respuestas.</Text>
                 </View>
@@ -178,3 +172,33 @@ export function TicketConversation({ ticket }: TicketConversationProps) {
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: 'white',
+    },
+    listContent: {
+        padding: 16,
+        paddingBottom: 10,
+    },
+    inputContainer: {
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        padding: 8,
+        backgroundColor: 'white',
+    },
+    textInput: {
+        flex: 1,
+        backgroundColor: '#f3f4f6',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        paddingBottom: 10,
+        marginRight: 8,
+        fontSize: 16,
+        minHeight: 40,
+        maxHeight: 100,
+    },
+});
+

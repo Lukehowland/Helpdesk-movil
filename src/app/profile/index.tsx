@@ -40,21 +40,7 @@ export default function ProfileScreen() {
         );
     }, 500); // 500ms delay to prevent multiple logout alerts
 
-    const handleRefreshToken = useDebounceCallback(async () => {
-        const success = await refreshToken();
-        Alert.alert(
-            'Refresh Token',
-            success ? 'Token refrescado exitosamente' : 'Error al refrescar el token'
-        );
-    }, 500); // 500ms delay for testing actions
 
-    const handleInvalidateToken = useDebounceCallback(async () => {
-        await invalidateToken();
-        Alert.alert(
-            'Token Invalidado',
-            'El token ha sido invalidado. Intenta acceder a cualquier recurso para testear el auto-refresh.'
-        );
-    }, 500); // 500ms delay for testing actions
 
     const handlePickImage = useDebounceCallback(async () => {
         try {
@@ -179,32 +165,11 @@ export default function ProfileScreen() {
                         right={(props) => <List.Icon {...props} icon="chevron-right" />}
                         onPress={() => push('/profile/sessions')}
                     />
-                    <Divider />
-                    <List.Item
-                        title="Cambiar Contraseña"
-                        left={(props) => <List.Icon {...props} icon="lock-reset" color="#4b5563" />}
-                        right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                        onPress={() => push('/profile/change-password')}
-                    />
+
                 </View>
 
                 <View className="mt-6 px-4 mb-8">
-                    <Button
-                        mode="outlined"
-                        onPress={handleRefreshToken}
-                        textColor="#2563eb"
-                        className="border-blue-200 bg-white mb-2"
-                    >
-                        Test Refresh Token
-                    </Button>
-                    <Button
-                        mode="outlined"
-                        onPress={handleInvalidateToken}
-                        textColor="#f97316"
-                        className="border-orange-200 bg-white mb-2"
-                    >
-                        Test Invalidar Token
-                    </Button>
+
                     <Button
                         mode="outlined"
                         onPress={handleLogout}

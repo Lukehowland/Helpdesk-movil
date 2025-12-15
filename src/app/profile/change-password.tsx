@@ -58,15 +58,8 @@ export default function ChangePasswordScreen() {
                     name="newPassword"
                     label="Nueva Contraseña"
                     secureTextEntry={!showPassword}
-                    right={
-                        <Button
-                            onPress={() => setShowPassword(!showPassword)}
-                            compact
-                            textColor="#6b7280"
-                        >
-                            {showPassword ? 'Ocultar' : 'Mostrar'}
-                        </Button>
-                    }
+                    rightIcon={showPassword ? "eye-off" : "eye"}
+                    onRightIconPress={() => setShowPassword(!showPassword)}
                 />
 
                 <ControlledInput
